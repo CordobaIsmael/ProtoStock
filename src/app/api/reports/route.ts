@@ -48,21 +48,46 @@ export async function GET(request: Request) {
     const ticketsCount = sales.length;
     const avgTicket = ticketsCount > 0 ? totalRevenue / ticketsCount : 0;
 
-    // 3. Desglose por Método de Pago
+    // 3. Desglose preciso por Método de Pago (Efectivo, Débito, Crédito, Transferencia/MP)
+    const cash = sales
+      .filter((s) => s.paymentMethod === "EFECTIVO")
+      .reduce((acc, s) => acc + s.totalAmount, 0);
+
+    const cardDebito = sales
+      .filter((s) => s.paymentMethod === "TARJETA_DEBITO")
+      .reduce((acc, s) => acc + s.totalAmount, 0);
+
+    const cardCredito = sales
+      .filter((s) => s.paymentMethod === "TARJETA_CREDITO")
+      .reduce((acc, s) => acc + s.totalAmount, 0);
+
+    const cardGeneric = sales
+      .filter((s) => s.paymentMethod === "TARJETA")
+      .reduce((acc, s) => acc + s.totalAmount, 0);
+
+    const transfer = sales
+      .filter((s) => s.paymentMethod === "TRANSFERENCIA" || s.paymentMethod === "MERCADOPAGO")
+      .reduce((acc, s) => acc + s.totalAmount, 0);
+
     const paymentBreakdown = {
-      cash: sales
-        .filter((s) => s.paymentMethod === "EFECTIVO")
-        .reduce((acc, s) => acc + s.totalAmount, 0),
-      card: sales
-        .filter((s) => s.paymentMethod === "TARJETA")
-        .reduce((acc, s) => acc + s.totalAmount, 0),
-      transfer: sales
-        .filter((s) => s.paymentMethod === "TRANSFERENCIA" || s.paymentMethod === "MERCADOPAGO")
-        .reduce((acc, s) => acc + s.totalAmount, 0),
+      cash,
+      cardDebito,
+      cardCredito,
+      card: cardDebito + cardCredito + cardGeneric,
+      transfer,
     };
 
     // 4. Ganancia Bruta Estimada & Ranking de Productos
-    const productStatsMap: { [key: string]: { name: string; category: string; quantity: number; revenue: number; profit: number; isWeighted: boolean } } = {};
+    const productStatsMap: {
+      [key: string]: {
+        name: string;
+        category: string;
+        quantity: number;
+        revenue: number;
+        profit: number;
+        isWeighted: boolean;
+      };
+    } = {};
     let totalCost = 0;
 
     sales.forEach((sale) => {

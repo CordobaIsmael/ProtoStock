@@ -31,6 +31,8 @@ interface ReportData {
   };
   paymentBreakdown: {
     cash: number;
+    cardDebito: number;
+    cardCredito: number;
     card: number;
     transfer: number;
   };
@@ -110,11 +112,20 @@ export default function ReportsPage() {
     totalShrinkageLoss: 0,
   };
 
-  const payment = data?.paymentBreakdown || { cash: 0, card: 0, transfer: 0 };
-  const totalPaymentSum = payment.cash + payment.card + payment.transfer || 1;
+  const payment = data?.paymentBreakdown || {
+    cash: 0,
+    cardDebito: 0,
+    cardCredito: 0,
+    card: 0,
+    transfer: 0,
+  };
+
+  const totalPaymentSum =
+    payment.cash + payment.cardDebito + payment.cardCredito + payment.transfer || 1;
 
   const cashPct = Math.round((payment.cash / totalPaymentSum) * 100);
-  const cardPct = Math.round((payment.card / totalPaymentSum) * 100);
+  const debitoPct = Math.round((payment.cardDebito / totalPaymentSum) * 100);
+  const creditoPct = Math.round((payment.cardCredito / totalPaymentSum) * 100);
   const transferPct = Math.round((payment.transfer / totalPaymentSum) * 100);
 
   return (
@@ -285,20 +296,38 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Tarjeta */}
+            {/* Tarjeta Débito */}
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs font-semibold">
                 <span className="text-slate-300 flex items-center gap-1.5">
-                  <CreditCard className="w-4 h-4 text-blue-400" /> Tarjeta (Débito/Crédito)
+                  <CreditCard className="w-4 h-4 text-blue-400" /> Tarjeta de Débito
                 </span>
                 <span className="font-mono text-blue-400 font-bold">
-                  ${payment.card.toLocaleString("es-AR")} ({cardPct}%)
+                  ${payment.cardDebito.toLocaleString("es-AR")} ({debitoPct}%)
                 </span>
               </div>
               <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
                 <div
                   className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                  style={{ width: `${cardPct}%` }}
+                  style={{ width: `${debitoPct}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Tarjeta Crédito */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs font-semibold">
+                <span className="text-slate-300 flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-purple-400" /> Tarjeta de Crédito
+                </span>
+                <span className="font-mono text-purple-400 font-bold">
+                  ${payment.cardCredito.toLocaleString("es-AR")} ({creditoPct}%)
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full bg-purple-500 rounded-full transition-all duration-500"
+                  style={{ width: `${creditoPct}%` }}
                 ></div>
               </div>
             </div>
