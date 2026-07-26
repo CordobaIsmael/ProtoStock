@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Bell, Clock, LogOut, Menu } from "lucide-react";
+import { User, Bell, Clock, LogOut, Menu, Maximize2, Minimize2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -16,6 +16,7 @@ export default function Header() {
   const pathname = usePathname();
   const [time, setTime] = useState<string>("");
   const [activeUser, setActiveUser] = useState<ActiveUser | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const loadActiveUser = () => {
     const storedUser = localStorage.getItem("activeUser");
@@ -71,6 +72,16 @@ export default function Header() {
     window.dispatchEvent(new Event("toggleMobileMenu"));
   };
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(console.error);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => setIsFullscreen(false)).catch(console.error);
+      }
+    }
+  };
+
   return (
     <header className="h-16 bg-slate-900/90 border-b border-slate-800 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 select-none">
       <div className="flex items-center gap-3">
@@ -90,7 +101,20 @@ export default function Header() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Botón Pantalla Completa (Tablet / POS) */}
+        <button
+          onClick={toggleFullscreen}
+          className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5 border border-transparent hover:border-slate-700"
+          title="Pantalla Completa (Tablet / POS)"
+        >
+          {isFullscreen ? (
+            <Minimize2 className="w-5 h-5 text-amber-400" />
+          ) : (
+            <Maximize2 className="w-5 h-5 text-slate-300" />
+          )}
+        </button>
+
         {/* Notificaciones */}
         <button className="relative p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition">
           <Bell className="w-5 h-5" />

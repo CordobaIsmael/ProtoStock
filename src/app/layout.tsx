@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   title: "ProtoStock - Sistema de Gestión POS y Stock",
   description:
     "Sistema integral de gestión de ventas, stock por peso/unidad, lotes, vencimientos y caja diaria para fiambrería, almacén y kioscos.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "ProtoStock",
+  },
 };
 
 export default function RootLayout({
