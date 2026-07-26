@@ -97,8 +97,8 @@ export default function LoginPage() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-700 flex items-center justify-center text-white shadow-xl shadow-rose-950/50 mx-auto">
             <Store className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-wide">LocalKioskito</h1>
-          <p className="text-xs text-rose-400 font-semibold">Sistema de Fiambrería & Almacén</p>
+          <h1 className="text-2xl font-bold text-white tracking-wide">ProtoStock</h1>
+          <p className="text-xs text-rose-400 font-semibold">Sistema de Gestión POS & Stock</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 relative">

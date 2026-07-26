@@ -4,9 +4,9 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
 export const metadata: Metadata = {
-  title: "LocalKioskito - Sistema de Gestión para Fiambrería y Almacén",
+  title: "ProtoStock - Sistema de Gestión POS y Stock",
   description:
-    "Sistema integral de gestión de ventas, stock por peso/unidad, lotes, vencimientos y caja diaria para fiambrería y almacén.",
+    "Sistema integral de gestión de ventas, stock por peso/unidad, lotes, vencimientos y caja diaria para fiambrería, almacén y kioscos.",
 };
 
 export default function RootLayout({
