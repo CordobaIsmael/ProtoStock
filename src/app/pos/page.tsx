@@ -175,7 +175,11 @@ export default function POSPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setLastSale(data.sale);
+        setLastSale({
+          ...data.sale,
+          cashTenderedVal: paymentMethod === "EFECTIVO" ? (parseFloat(cashTendered) || data.sale.totalAmount) : data.sale.totalAmount,
+          changeDueVal: paymentMethod === "EFECTIVO" ? Math.max(0, (parseFloat(cashTendered) || 0) - totalCart) : 0,
+        });
         setCart([]);
         setIsPaymentModalOpen(false);
         setCashTendered("");
@@ -669,10 +673,8 @@ export default function POSPage() {
                 })) || []}
                 totalAmount={lastSale.totalAmount}
                 paymentMethod={lastSale.paymentMethod}
-                cashTendered={parseFloat(cashTendered) || lastSale.totalAmount}
-                changeDue={
-                  (parseFloat(cashTendered) || lastSale.totalAmount) - lastSale.totalAmount
-                }
+                cashTendered={lastSale.cashTenderedVal ?? lastSale.totalAmount}
+                changeDue={lastSale.changeDueVal ?? 0}
                 paperWidth={paperWidth}
                 isFiscal={isFiscalTicket}
                 caeNumber={isFiscalTicket ? "7429183928194" : undefined}
