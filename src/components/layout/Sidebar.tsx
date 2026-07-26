@@ -67,7 +67,7 @@ export default function Sidebar() {
           </div>
           <div>
             <h1 className="font-bold text-slate-100 text-lg tracking-wide leading-tight">
-              LocalKioskito
+              ProtoStock
             </h1>
             <p className="text-xs text-rose-400 font-medium">Fiambrería & Almacén</p>
           </div>
