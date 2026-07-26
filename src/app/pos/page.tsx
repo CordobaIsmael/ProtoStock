@@ -2,21 +2,24 @@
 
 import { useEffect, useState, useRef } from "react";
 import {
-  Search,
   ShoppingCart,
-  Trash2,
+  Search,
   Plus,
   Minus,
+  Trash2,
   CheckCircle,
-  CreditCard,
   Banknote,
+  CreditCard,
   QrCode,
-  Scale,
   X,
   Printer,
-  Sparkles,
-  AlertCircle,
+  Scale,
+  Barcode,
+  RotateCcw,
+  Receipt,
+  FileText,
 } from "lucide-react";
+import ThermalTicket from "@/components/pos/ThermalTicket";
 
 interface Product {
   id: string;
@@ -54,6 +57,8 @@ export default function POSPage() {
   const [discount, setDiscount] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
+  const [paperWidth, setPaperWidth] = useState<"58mm" | "80mm">("58mm");
+  const [isFiscalTicket, setIsFiscalTicket] = useState<boolean>(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -574,40 +579,117 @@ export default function POSPage() {
         </div>
       )}
 
-      {/* Ticket / Confirmación de Venta Exitosa */}
+      {/* Ticket / Confirmación de Venta Exitosa & Impresión Térmica */}
       {lastSale && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-5 shadow-2xl text-center animate-fade-in">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto">
-              <CheckCircle className="w-10 h-10" />
-            </div>
-
-            <div>
-              <h3 className="font-extrabold text-2xl text-white">¡Venta Exitosa!</h3>
-              <p className="text-slate-400 text-sm mt-1">Ticket #{lastSale.saleNumber}</p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-850 border border-slate-800 font-mono text-sm space-y-1 text-left">
-              <div className="flex justify-between text-slate-400">
-                <span>Total Cobrado:</span>
-                <span className="text-emerald-400 font-bold">${lastSale.totalAmount.toLocaleString("es-AR")}</span>
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl animate-fade-in max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-6 h-6 text-emerald-400" />
+                <h3 className="font-extrabold text-xl text-white">¡Venta Registrada!</h3>
               </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Método:</span>
-                <span className="text-slate-200">{lastSale.paymentMethod}</span>
+              <button
+                onClick={() => setLastSale(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Opciones de Formato de Ticket */}
+            <div className="p-3 rounded-xl bg-slate-850 border border-slate-800 space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-slate-300">Ancho del Papel:</span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setPaperWidth("58mm")}
+                    className={`px-2.5 py-1 rounded font-bold transition ${
+                      paperWidth === "58mm"
+                        ? "bg-rose-600 text-white"
+                        : "bg-slate-800 text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    58mm (Mini)
+                  </button>
+                  <button
+                    onClick={() => setPaperWidth("80mm")}
+                    className={`px-2.5 py-1 rounded font-bold transition ${
+                      paperWidth === "80mm"
+                        ? "bg-rose-600 text-white"
+                        : "bg-slate-800 text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    80mm (Estándar)
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-800">
+                <span className="font-semibold text-slate-300">Tipo de Comprobante:</span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setIsFiscalTicket(false)}
+                    className={`px-2.5 py-1 rounded font-bold transition ${
+                      !isFiscalTicket
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-800 text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Control Interno
+                  </button>
+                  <button
+                    onClick={() => setIsFiscalTicket(true)}
+                    className={`px-2.5 py-1 rounded font-bold transition ${
+                      isFiscalTicket
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-800 text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Vista AFIP (Factura C)
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-3">
+            {/* Vista Previa del Ticket Térmico */}
+            <div className="py-2 bg-slate-950 rounded-xl overflow-x-auto border border-slate-800">
+              <ThermalTicket
+                ticketNumber={lastSale.saleNumber}
+                date={new Date(lastSale.createdAt || Date.now()).toLocaleString("es-AR")}
+                cashierName={lastSale.user?.name || "Cajero"}
+                customerName={lastSale.customerName || "Consumidor Final"}
+                items={lastSale.items?.map((item: any) => ({
+                  name: item.product?.name || "Producto",
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice,
+                  subtotal: item.subtotal,
+                  unitType: item.unitType || "UNIDAD",
+                  isWeighted: item.product?.isWeighted || false,
+                })) || []}
+                totalAmount={lastSale.totalAmount}
+                paymentMethod={lastSale.paymentMethod}
+                cashTendered={parseFloat(cashTendered) || lastSale.totalAmount}
+                changeDue={
+                  (parseFloat(cashTendered) || lastSale.totalAmount) - lastSale.totalAmount
+                }
+                paperWidth={paperWidth}
+                isFiscal={isFiscalTicket}
+                caeNumber={isFiscalTicket ? "7429183928194" : undefined}
+              />
+            </div>
+
+            {/* Acciones de Impresión */}
+            <div className="flex gap-3 pt-2">
               <button
                 onClick={() => window.print()}
-                className="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm flex items-center justify-center gap-2 border border-slate-700"
+                className="flex-1 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center gap-2 border border-slate-700 transition"
               >
-                <Printer className="w-4 h-4" /> Print Ticket
+                <Printer className="w-4 h-4 text-emerald-400" />
+                <span>Imprimir Ticket</span>
               </button>
               <button
                 onClick={() => setLastSale(null)}
-                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-950/40"
+                className="flex-1 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-sm shadow-lg shadow-rose-950/40 transition"
               >
                 Siguiente Venta
               </button>

@@ -57,3 +57,24 @@ body {
 .animate-fade-in {
   animation: fadeIn 0.25s ease-out forwards;
 }
+
+/* Estilos de Impresión Térmica */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #printable-thermal-ticket,
+  #printable-thermal-ticket * {
+    visibility: visible !important;
+  }
+  #printable-thermal-ticket {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}
