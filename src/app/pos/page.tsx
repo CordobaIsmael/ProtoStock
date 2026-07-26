@@ -20,6 +20,7 @@ import {
   FileText,
 } from "lucide-react";
 import ThermalTicket from "@/components/pos/ThermalTicket";
+import { printThermalTicketElement } from "@/utils/printTicket";
 
 interface Product {
   id: string;
@@ -681,7 +682,7 @@ export default function POSPage() {
             {/* Acciones de Impresión */}
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => window.print()}
+                onClick={() => printThermalTicketElement("printable-thermal-ticket")}
                 className="flex-1 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center gap-2 border border-slate-700 transition"
               >
                 <Printer className="w-4 h-4 text-emerald-400" />
