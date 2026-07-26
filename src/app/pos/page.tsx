@@ -18,6 +18,8 @@ import {
   RotateCcw,
   Receipt,
   FileText,
+  Keyboard,
+  Tablet,
 } from "lucide-react";
 import ThermalTicket from "@/components/pos/ThermalTicket";
 import { printThermalTicketElement } from "@/utils/printTicket";
@@ -61,8 +63,22 @@ export default function POSPage() {
   const [paperWidth, setPaperWidth] = useState<"58mm" | "80mm">("58mm");
   const [isFiscalTicket, setIsFiscalTicket] = useState<boolean>(false);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState<boolean>(false);
+  const [disableVirtualKeyboard, setDisableVirtualKeyboard] = useState<boolean>(true);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("tabletNoKeyboard");
+    if (saved !== null) {
+      setDisableVirtualKeyboard(saved === "true");
+    }
+  }, []);
+
+  const toggleTabletKeyboard = () => {
+    const newVal = !disableVirtualKeyboard;
+    setDisableVirtualKeyboard(newVal);
+    localStorage.setItem("tabletNoKeyboard", String(newVal));
+  };
 
   // Cargar productos
   useEffect(() => {
@@ -350,12 +366,13 @@ export default function POSPage() {
       {/* Panel Izquierdo: Catálogo y Búsqueda */}
       <div className="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl min-h-0">
         {/* Barra de Búsqueda y Filtros */}
-        <div className="p-3 sm:p-4 bg-slate-900 border-b border-slate-800 flex items-center gap-3">
-          <div className="relative flex-1">
+        <div className="p-3 sm:p-4 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
             <input
               ref={searchInputRef}
               type="text"
+              inputMode={disableVirtualKeyboard ? "none" : "text"}
               placeholder="Buscar por nombre o código (F2)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -371,6 +388,23 @@ export default function POSPage() {
               </button>
             )}
           </div>
+
+          {/* Botón de Modo Tablet (Sin Teclado Virtual) */}
+          <button
+            type="button"
+            onClick={toggleTabletKeyboard}
+            className={`px-3 py-2.5 rounded-xl font-bold text-xs border flex items-center gap-2 transition ${
+              disableVirtualKeyboard
+                ? "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30 shadow-sm"
+                : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200"
+            }`}
+            title="Activar/Desactivar ocultamiento del teclado virtual de la tablet"
+          >
+            <Tablet className="w-4 h-4 text-amber-400" />
+            <span>
+              {disableVirtualKeyboard ? "Modo Tablet (Sin Teclado)" : "Teclado OS Activo"}
+            </span>
+          </button>
         </div>
 
         {/* Lista de Productos */}
@@ -467,6 +501,7 @@ export default function POSPage() {
                 <div className="relative">
                   <input
                     type="number"
+                    inputMode={disableVirtualKeyboard ? "none" : "decimal"}
                     value={customWeightGrams}
                     onChange={(e) => setCustomWeightGrams(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-xl font-bold text-center focus:outline-none focus:border-amber-500"
@@ -584,6 +619,7 @@ export default function POSPage() {
                   </label>
                   <input
                     type="number"
+                    inputMode={disableVirtualKeyboard ? "none" : "decimal"}
                     value={cashTendered}
                     onChange={(e) => setCashTendered(e.target.value)}
                     placeholder={`Ej: ${totalCart}`}
