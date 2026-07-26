@@ -158,6 +158,16 @@ export default function POSPage() {
 
   const handleProcessSale = async () => {
     if (cart.length === 0) return;
+
+    // Capturar de forma síncrona antes del fetch
+    const enteredCashNum = parseFloat(cashTendered);
+    const finalPaidCash =
+      paymentMethod === "EFECTIVO" && !isNaN(enteredCashNum) && enteredCashNum > 0
+        ? enteredCashNum
+        : totalCart;
+    const finalChange =
+      paymentMethod === "EFECTIVO" ? Math.max(0, finalPaidCash - totalCart) : 0;
+
     setIsProcessing(true);
     try {
       const res = await fetch("/api/sales", {
@@ -177,8 +187,8 @@ export default function POSPage() {
       if (res.ok && data.success) {
         setLastSale({
           ...data.sale,
-          cashTenderedVal: paymentMethod === "EFECTIVO" ? (parseFloat(cashTendered) || data.sale.totalAmount) : data.sale.totalAmount,
-          changeDueVal: paymentMethod === "EFECTIVO" ? Math.max(0, (parseFloat(cashTendered) || 0) - totalCart) : 0,
+          cashTenderedVal: finalPaidCash,
+          changeDueVal: finalChange,
         });
         setCart([]);
         setIsPaymentModalOpen(false);
@@ -529,9 +539,34 @@ export default function POSPage() {
                     type="number"
                     value={cashTendered}
                     onChange={(e) => setCashTendered(e.target.value)}
-                    placeholder="Monto entregado..."
+                    placeholder={`Ej: ${totalCart}`}
                     className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xl font-bold focus:outline-none focus:border-emerald-500"
+                    autoFocus
                   />
+                  {/* Botones Rápidos de Billetes */}
+                  <div className="grid grid-cols-4 gap-1.5 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setCashTendered(totalCart.toString())}
+                      className="py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold font-mono border border-slate-700"
+                    >
+                      Exacto
+                    </button>
+                    {["1000", "2000", "5000", "10000", "20000", "50000"].map((bill) => (
+                      <button
+                        key={bill}
+                        type="button"
+                        onClick={() => setCashTendered(bill)}
+                        className={`py-1 rounded text-xs font-semibold font-mono border transition ${
+                          cashTendered === bill
+                            ? "bg-emerald-500 text-slate-950 font-bold border-emerald-400"
+                            : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                        }`}
+                      >
+                        ${parseInt(bill).toLocaleString("es-AR")}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {tenderedVal > 0 && (
