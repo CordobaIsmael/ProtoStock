@@ -18,6 +18,10 @@ import {
   Trash2,
   TrendingDown,
   DollarSign,
+  FileSpreadsheet,
+  Download,
+  Upload,
+  FileText,
 } from "lucide-react";
 
 interface Product {
@@ -73,6 +77,11 @@ export default function ProductsPage() {
   const [selectedProductForShrinkage, setSelectedProductForShrinkage] = useState<Product | null>(null);
   const [shrinkageQuantity, setShrinkageQuantity] = useState("1");
   const [shrinkageReason, setShrinkageReason] = useState("Mercadería Vencida");
+
+  // Modal de Importación Masiva (Excel / CSV)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [csvRawText, setCsvRawText] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("activeUser");
@@ -248,6 +257,121 @@ export default function ProductsPage() {
     }
   };
 
+  // Exportar catálogo a CSV
+  const handleExportCSV = () => {
+    if (products.length === 0) return alert("No hay productos para exportar");
+
+    const headers = ["codigo", "nombre", "categoria", "tipoVenta", "precioCosto", "precioVenta", "stockActual", "stockMinimo"];
+    const rows = products.map((p) => [
+      p.code || "",
+      `"${p.name.replace(/"/g, '""')}"`,
+      `"${(p.category?.name || "General").replace(/"/g, '""')}"`,
+      p.unitType,
+      p.costPrice,
+      p.salePrice,
+      p.currentStock,
+      p.minStock,
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `catalogo_protostock_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Descargar plantilla CSV de ejemplo
+  const handleDownloadSampleCSV = () => {
+    const sampleText =
+      "codigo,nombre,categoria,tipoVenta,precioCosto,precioVenta,stockActual,stockMinimo\n" +
+      "F001,Jamón Cocido Paladini,Fiambrería,KG,4500,7800,12.5,3\n" +
+      "F002,Queso Tybo Barra,Fiambrería,KG,3800,6900,15,3\n" +
+      "A001,Pan de Miga 1kg,Almacén,UNIDAD,1200,2200,20,5\n" +
+      "B001,Coca Cola 2.25L,Bebidas,UNIDAD,1800,2800,30,10";
+
+    const csvContent = "data:text/csv;charset=utf-8," + sampleText;
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "plantilla_importacion_protostock.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Procesar importación masiva de CSV
+  const handleProcessImport = async () => {
+    if (!csvRawText.trim()) return alert("Ingresa o pega los datos en formato CSV/Excel");
+
+    try {
+      setIsImporting(true);
+      const lines = csvRawText.trim().split("\n");
+      const parsedProducts = [];
+
+      let startIndex = 0;
+      // Si la primera línea es la cabecera (codigo,nombre...), saltarla
+      if (lines[0].toLowerCase().includes("nombre") || lines[0].toLowerCase().includes("codigo")) {
+        startIndex = 1;
+      }
+
+      for (let i = startIndex; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const cols = line.split(",").map((c) => c.replace(/^"|"$/g, "").trim());
+        if (cols.length >= 2) {
+          parsedProducts.push({
+            code: cols[0] || null,
+            name: cols[1] || "",
+            category: cols[2] || "General",
+            unitType: cols[3] || "KG",
+            costPrice: cols[4] || 0,
+            salePrice: cols[5] || 0,
+            currentStock: cols[6] || 0,
+            minStock: cols[7] || 5,
+          });
+        }
+      }
+
+      if (parsedProducts.length === 0) {
+        setIsImporting(false);
+        return alert("No se detectaron filas válidas para procesar.");
+      }
+
+      const res = await fetch("/api/products/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          products: parsedProducts,
+          activeUserRole: userRole,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(
+          `¡Importación exitosa!\n- Nuevos creados: ${data.importedCount}\n- Actualizados: ${data.updatedCount}`
+        );
+        setIsImportModalOpen(false);
+        setCsvRawText("");
+        fetchProducts();
+        fetchCategories();
+      } else {
+        alert(data.error || "Error durante la importación.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const isAdmin = userRole === "ADMIN";
   const isEncargado = userRole === "ENCARGADO";
   const isCashier = userRole === "CAJERO";
@@ -257,7 +381,7 @@ export default function ProductsPage() {
   return (
     <div className="space-y-6 animate-fade-in select-none">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-white tracking-wide">
@@ -270,18 +394,34 @@ export default function ProductsPage() {
             )}
           </div>
           <p className="text-slate-400 text-sm mt-1">
-            Catálogo general, cambio de precios, control de mermas/vencimientos y estado de productos.
+            Catálogo general, cambio de precios, mermas e importación masiva desde Excel.
           </p>
         </div>
 
         {!isCashier ? (
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm shadow-lg shadow-rose-950/40 transition active:scale-95 self-start sm:self-auto"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Nuevo Producto</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-sm font-semibold transition"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Importar Excel</span>
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-sm font-semibold transition"
+            >
+              <Download className="w-4 h-4" />
+              <span>Exportar</span>
+            </button>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm shadow-lg shadow-rose-950/40 transition active:scale-95"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Nuevo Producto</span>
+            </button>
+          </div>
         ) : (
           <div className="text-xs text-amber-400 font-medium flex items-center gap-2 bg-amber-950/40 p-2.5 rounded-xl border border-amber-800/40">
             <ShieldAlert className="w-4 h-4" />
@@ -453,6 +593,72 @@ export default function ProductsPage() {
           </table>
         </div>
       </div>
+
+      {/* Modal para Importación Masiva (Excel/CSV) */}
+      {isImportModalOpen && !isCashier && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl p-6 space-y-4 shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-6 h-6 text-amber-400" />
+                <h3 className="font-bold text-xl text-white">Importar Catálogo desde Excel / CSV</h3>
+              </div>
+              <button
+                onClick={() => setIsImportModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-850 border border-slate-800 text-xs text-slate-300 space-y-2">
+              <p className="font-bold text-amber-300">💡 Formato del archivo CSV o texto pegado:</p>
+              <p className="font-mono text-slate-400">
+                codigo, nombre, categoria, tipoVenta (KG/UNIDAD), precioCosto, precioVenta, stockActual, stockMinimo
+              </p>
+              <div className="pt-1">
+                <button
+                  onClick={handleDownloadSampleCSV}
+                  className="text-amber-400 hover:text-amber-300 font-bold underline flex items-center gap-1"
+                >
+                  <Download className="w-3.5 h-3.5" /> Descargar Plantilla de Ejemplo (.csv)
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">
+                Pega aquí el contenido de tu archivo CSV o Excel:
+              </label>
+              <textarea
+                rows={8}
+                value={csvRawText}
+                onChange={(e) => setCsvRawText(e.target.value)}
+                placeholder="F001,Jamón Cocido Paladini,Fiambrería,KG,4500,7800,12.5,3&#10;A001,Pan de Miga 1kg,Almacén,UNIDAD,1200,2200,20,5"
+                className="w-full p-3.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(false)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleProcessImport}
+                disabled={isImporting}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-extrabold shadow-lg shadow-amber-950/40 flex items-center justify-center gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                <span>{isImporting ? "Procesando..." : "Procesar & Cargar Productos"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal para Crear Producto */}
       {isCreateModalOpen && !isCashier && (
