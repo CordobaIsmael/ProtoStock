@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Bell, Clock, LogOut, Shield } from "lucide-react";
+import { User, Bell, Clock, LogOut, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -65,19 +65,32 @@ export default function Header() {
     };
   }, [pathname]);
 
-  // Si estamos en la pantalla de login, no mostrar la cabecera
   if (pathname === "/login") return null;
 
+  const handleOpenMobileMenu = () => {
+    window.dispatchEvent(new Event("toggleMobileMenu"));
+  };
+
   return (
-    <header className="h-16 bg-slate-900/80 border-b border-slate-800 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30 select-none">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 text-slate-300 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/50 text-sm font-mono">
+    <header className="h-16 bg-slate-900/90 border-b border-slate-800 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 select-none">
+      <div className="flex items-center gap-3">
+        {/* Botón Menú Hamburguesa para Móvil y Tablet */}
+        <button
+          onClick={handleOpenMobileMenu}
+          className="lg:hidden p-2 rounded-xl text-slate-300 hover:text-white bg-slate-800 border border-slate-700 transition"
+          aria-label="Abrir Menú"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        {/* Reloj */}
+        <div className="flex items-center gap-2 text-slate-300 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/50 text-xs sm:text-sm font-mono">
           <Clock className="w-4 h-4 text-rose-400" />
           <span>{time || "--:--:--"}</span>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         {/* Notificaciones */}
         <button className="relative p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition">
           <Bell className="w-5 h-5" />
@@ -85,11 +98,11 @@ export default function Header() {
         </button>
 
         {/* Perfil del Usuario Activo */}
-        <div className="flex items-center gap-3 pl-3 border-l border-slate-800">
-          <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 shadow-inner">
-            <User className="w-5 h-5 text-rose-400" />
+        <div className="flex items-center gap-2.5 sm:gap-3 pl-2 sm:pl-3 border-l border-slate-800">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 shadow-inner shrink-0">
+            <User className="w-4 h-4 sm:w-5 sm:h-5 text-rose-400" />
           </div>
-          <div className="text-left">
+          <div className="text-left hidden sm:block">
             <p className="text-sm font-semibold text-slate-100 leading-tight">
               {activeUser?.name || "Administrador General"}
             </p>
@@ -105,21 +118,17 @@ export default function Header() {
               >
                 {activeUser?.role || "ADMIN"}
               </span>
-              <span className="text-xs text-slate-400 font-mono">
-                @{activeUser?.username || "admin"}
-              </span>
             </div>
           </div>
 
           <Link
             href="/login"
             onClick={() => {
-              // Limpiar sesión al hacer clic en salir
               localStorage.removeItem("activeUser");
               window.dispatchEvent(new Event("userSessionChange"));
             }}
-            title="Cambiar Usuario / Salir de la Sesión"
-            className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition ml-2 border border-transparent hover:border-slate-700"
+            title="Salir de la Sesión"
+            className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition ml-1 border border-transparent hover:border-slate-700"
           >
             <LogOut className="w-4 h-4" />
           </Link>

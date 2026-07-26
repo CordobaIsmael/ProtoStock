@@ -60,6 +60,7 @@ export default function POSPage() {
   const [lastSale, setLastSale] = useState<any>(null);
   const [paperWidth, setPaperWidth] = useState<"58mm" | "80mm">("58mm");
   const [isFiscalTicket, setIsFiscalTicket] = useState<boolean>(false);
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState<boolean>(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -205,18 +206,157 @@ export default function POSPage() {
     }
   };
 
+  const cartPanelContent = (
+    <div className="flex flex-col h-full bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      {/* Carrito Header */}
+      <div className="p-4 bg-slate-850 border-b border-slate-800 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-slate-200">
+          <ShoppingCart className="w-5 h-5 text-rose-400" />
+          <h2 className="font-bold text-lg">Ticket de Venta</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          {cart.length > 0 && (
+            <button
+              onClick={() => setCart([])}
+              className="text-xs text-slate-400 hover:text-rose-400 flex items-center gap-1 transition"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Vaciar
+            </button>
+          )}
+          <button
+            onClick={() => setIsMobileCartOpen(false)}
+            className="lg:hidden text-slate-400 hover:text-white p-1 ml-2"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Lista de Items en Carrito */}
+      <div className="flex-1 p-3 overflow-y-auto space-y-2 max-h-[50vh] lg:max-h-none">
+        {cart.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-slate-500 p-6 text-center space-y-3 min-h-[160px]">
+            <div className="w-14 h-14 rounded-full bg-slate-800/80 flex items-center justify-center">
+              <ShoppingCart className="w-7 h-7 text-slate-600" />
+            </div>
+            <p className="text-sm">No hay productos seleccionados.</p>
+            <p className="text-xs text-slate-600">Haz clic en los productos para agregarlos.</p>
+          </div>
+        ) : (
+          cart.map((item) => (
+            <div
+              key={item.product.id}
+              className="p-3 rounded-xl bg-slate-800/70 border border-slate-700/50 flex flex-col gap-2"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="font-semibold text-sm text-slate-200 leading-tight">
+                    {item.product.name}
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    ${item.product.salePrice.toLocaleString("es-AR")} x{" "}
+                    {item.product.isWeighted
+                      ? `${(item.quantity * 1000).toFixed(0)}g (${item.quantity.toFixed(3)}kg)`
+                      : `${item.quantity} u.`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => removeFromCart(item.product.id)}
+                  className="text-slate-500 hover:text-rose-400 p-1"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                {/* Controles de Cantidad */}
+                <div className="flex items-center gap-1.5 bg-slate-900 rounded-lg p-1 border border-slate-700">
+                  <button
+                    onClick={() =>
+                      updateQuantity(
+                        item.product.id,
+                        item.quantity - (item.product.isWeighted ? 0.05 : 1)
+                      )
+                    }
+                    className="p-1 hover:bg-slate-800 rounded text-slate-300"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-xs font-mono font-bold text-white px-2">
+                    {item.product.isWeighted
+                      ? `${(item.quantity * 1000).toFixed(0)}g`
+                      : item.quantity}
+                  </span>
+                  <button
+                    onClick={() =>
+                      updateQuantity(
+                        item.product.id,
+                        item.quantity + (item.product.isWeighted ? 0.05 : 1)
+                      )
+                    }
+                    className="p-1 hover:bg-slate-800 rounded text-slate-300"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <span className="font-extrabold text-emerald-400 text-sm">
+                  ${item.subtotal.toLocaleString("es-AR")}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Resumen y Botón de Cobro */}
+      <div className="p-4 bg-slate-850 border-t border-slate-800 space-y-3">
+        <div className="space-y-1.5 text-sm">
+          <div className="flex justify-between text-slate-400">
+            <span>Subtotal:</span>
+            <span className="font-mono text-slate-200">${subtotalCart.toLocaleString("es-AR")}</span>
+          </div>
+          {discount > 0 && (
+            <div className="flex justify-between text-rose-400">
+              <span>Descuento:</span>
+              <span className="font-mono">-${discount.toLocaleString("es-AR")}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-baseline pt-2 border-t border-slate-700/60 font-bold text-lg">
+            <span className="text-white">Total a Cobrar:</span>
+            <span className="font-extrabold text-2xl text-emerald-400 font-mono">
+              ${totalCart.toLocaleString("es-AR")}
+            </span>
+          </div>
+        </div>
+
+        <button
+          disabled={cart.length === 0}
+          onClick={() => {
+            setIsMobileCartOpen(false);
+            setIsPaymentModalOpen(true);
+          }}
+          className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 disabled:hover:from-emerald-600 text-white font-extrabold text-base shadow-lg shadow-emerald-950/40 transition active:scale-95 flex items-center justify-center gap-2"
+        >
+          <Banknote className="w-5 h-5" />
+          <span>COBRAR (${totalCart.toLocaleString("es-AR")})</span>
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="h-[calc(100vh-6rem)] flex gap-6 select-none animate-fade-in">
+    <div className="h-[calc(100vh-5rem)] lg:h-[calc(100vh-6rem)] flex flex-col lg:flex-row gap-4 lg:gap-6 select-none animate-fade-in pb-16 lg:pb-0 relative">
       {/* Panel Izquierdo: Catálogo y Búsqueda */}
-      <div className="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl min-h-0">
         {/* Barra de Búsqueda y Filtros */}
-        <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center gap-3">
+        <div className="p-3 sm:p-4 bg-slate-900 border-b border-slate-800 flex items-center gap-3">
           <div className="relative flex-1">
             <Search className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Buscar producto por nombre o código de barras (F2)..."
+              placeholder="Buscar por nombre o código (F2)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-100 placeholder-slate-400 focus:outline-none focus:border-rose-500 text-sm"
@@ -234,32 +374,32 @@ export default function POSPage() {
         </div>
 
         {/* Lista de Productos */}
-        <div className="flex-1 p-4 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 content-start">
+        <div className="flex-1 p-3 sm:p-4 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 content-start">
           {products.map((prod) => (
             <button
               key={prod.id}
               onClick={() => openAddModal(prod)}
-              className="group p-3.5 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 hover:border-rose-500/50 flex flex-col justify-between text-left transition-all duration-150 relative overflow-hidden shadow-sm hover:shadow-md"
+              className="group p-3 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 hover:border-rose-500/50 flex flex-col justify-between text-left transition-all duration-150 relative overflow-hidden shadow-sm hover:shadow-md"
             >
               {prod.isWeighted && (
-                <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                  <Scale className="w-3 h-3" /> KG
+                <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                  <Scale className="w-2.5 h-2.5" /> KG
                 </span>
               )}
               <div>
-                <span className="text-[11px] text-slate-400 font-mono block">
+                <span className="text-[10px] text-slate-400 font-mono block">
                   {prod.code || "SKU-" + prod.id.slice(0, 4)}
                 </span>
-                <h3 className="font-semibold text-sm text-slate-200 group-hover:text-rose-400 transition-colors line-clamp-2 mt-1">
+                <h3 className="font-semibold text-xs sm:text-sm text-slate-200 group-hover:text-rose-400 transition-colors line-clamp-2 mt-0.5">
                   {prod.name}
                 </h3>
               </div>
 
-              <div className="mt-3 pt-2 border-t border-slate-800/60 flex items-baseline justify-between">
-                <span className="text-xs text-slate-400">
-                  Stock: {prod.currentStock.toFixed(prod.isWeighted ? 2 : 0)}
+              <div className="mt-2.5 pt-1.5 border-t border-slate-800/60 flex items-baseline justify-between">
+                <span className="text-[11px] text-slate-400">
+                  Stk: {prod.currentStock.toFixed(prod.isWeighted ? 2 : 0)}
                 </span>
-                <span className="font-extrabold text-slate-100 text-base text-rose-400">
+                <span className="font-extrabold text-slate-100 text-sm sm:text-base text-rose-400">
                   ${prod.salePrice.toLocaleString("es-AR")}
                 </span>
               </div>
@@ -268,132 +408,39 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* Panel Derecho: Carrito de Compras / Ticket en Caja */}
-      <div className="w-[420px] flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        {/* Carrito Header */}
-        <div className="p-4 bg-slate-850 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-slate-200">
-            <ShoppingCart className="w-5 h-5 text-rose-400" />
-            <h2 className="font-bold text-lg">Ticket de Venta</h2>
-          </div>
-          {cart.length > 0 && (
-            <button
-              onClick={() => setCart([])}
-              className="text-xs text-slate-400 hover:text-rose-400 flex items-center gap-1 transition"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Vaciar
-            </button>
-          )}
-        </div>
+      {/* Panel Derecho: Carrito en Escritorio */}
+      <div className="hidden lg:flex w-[420px] shrink-0">
+        {cartPanelContent}
+      </div>
 
-        {/* Lista de Items en Carrito */}
-        <div className="flex-1 p-3 overflow-y-auto space-y-2">
-          {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-500 p-6 text-center space-y-3">
-              <div className="w-14 h-14 rounded-full bg-slate-800/80 flex items-center justify-center">
-                <ShoppingCart className="w-7 h-7 text-slate-600" />
-              </div>
-              <p className="text-sm">No hay productos seleccionados.</p>
-              <p className="text-xs text-slate-600">Haz clic en los productos para agregarlos.</p>
-            </div>
-          ) : (
-            cart.map((item) => (
-              <div
-                key={item.product.id}
-                className="p-3 rounded-xl bg-slate-800/70 border border-slate-700/50 flex flex-col gap-2"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-semibold text-sm text-slate-200 leading-tight">
-                      {item.product.name}
-                    </h4>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      ${item.product.salePrice.toLocaleString("es-AR")} x{" "}
-                      {item.product.isWeighted
-                        ? `${(item.quantity * 1000).toFixed(0)}g (${item.quantity.toFixed(3)}kg)`
-                        : `${item.quantity} u.`}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => removeFromCart(item.product.id)}
-                    className="text-slate-500 hover:text-rose-400 p-1"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  {/* Controles de Cantidad */}
-                  <div className="flex items-center gap-1.5 bg-slate-900 rounded-lg p-1 border border-slate-700">
-                    <button
-                      onClick={() =>
-                        updateQuantity(
-                          item.product.id,
-                          item.quantity - (item.product.isWeighted ? 0.05 : 1)
-                        )
-                      }
-                      className="p-1 hover:bg-slate-800 rounded text-slate-300"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-xs font-mono font-bold text-white px-2">
-                      {item.product.isWeighted
-                        ? `${(item.quantity * 1000).toFixed(0)}g`
-                        : item.quantity}
-                    </span>
-                    <button
-                      onClick={() =>
-                        updateQuantity(
-                          item.product.id,
-                          item.quantity + (item.product.isWeighted ? 0.05 : 1)
-                        )
-                      }
-                      className="p-1 hover:bg-slate-800 rounded text-slate-300"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <span className="font-extrabold text-emerald-400 text-sm">
-                    ${item.subtotal.toLocaleString("es-AR")}
-                  </span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Resumen y Botón de Cobro */}
-        <div className="p-4 bg-slate-850 border-t border-slate-800 space-y-3">
-          <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between text-slate-400">
-              <span>Subtotal:</span>
-              <span className="font-mono text-slate-200">${subtotalCart.toLocaleString("es-AR")}</span>
-            </div>
-            {discount > 0 && (
-              <div className="flex justify-between text-rose-400">
-                <span>Descuento:</span>
-                <span className="font-mono">-${discount.toLocaleString("es-AR")}</span>
-              </div>
-            )}
-            <div className="flex justify-between items-baseline pt-2 border-t border-slate-700/60 font-bold text-lg">
-              <span className="text-white">Total a Cobrar:</span>
-              <span className="font-extrabold text-2xl text-emerald-400 font-mono">
-                ${totalCart.toLocaleString("es-AR")}
-              </span>
-            </div>
-          </div>
-
+      {/* Botón Flotante para Carrito en Móvil y Tablet */}
+      {cart.length > 0 && (
+        <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40">
           <button
-            disabled={cart.length === 0}
-            onClick={() => setIsPaymentModalOpen(true)}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 disabled:hover:from-emerald-600 text-white font-extrabold text-base shadow-lg shadow-emerald-950/40 transition active:scale-95 flex items-center justify-center gap-2"
+            onClick={() => setIsMobileCartOpen(true)}
+            className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold shadow-2xl flex items-center justify-between border border-emerald-400/30 active:scale-95 transition"
           >
-            <Banknote className="w-5 h-5" />
-            <span>COBRAR (${totalCart.toLocaleString("es-AR")})</span>
+            <div className="flex items-center gap-3">
+              <ShoppingCart className="w-5 h-5" />
+              <span>Ver Ticket ({cart.length} ítems)</span>
+            </div>
+            <span className="text-xl font-mono">${totalCart.toLocaleString("es-AR")}</span>
           </button>
         </div>
-      </div>
+      )}
+
+      {/* Drawer Deslizable del Carrito en Móvil y Tablet */}
+      {isMobileCartOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm"
+            onClick={() => setIsMobileCartOpen(false)}
+          />
+          <div className="fixed inset-x-0 bottom-0 max-h-[85vh] bg-slate-900 rounded-t-3xl border-t border-slate-800 shadow-2xl overflow-hidden animate-fade-in p-2">
+            {cartPanelContent}
+          </div>
+        </div>
+      )}
 
       {/* Modal para ingresar peso en Fiambrería */}
       {isWeightModalOpen && selectedProduct && (

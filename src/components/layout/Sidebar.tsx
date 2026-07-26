@@ -12,7 +12,8 @@ import {
   BarChart3,
   Users,
   Store,
-  Lock,
+  X,
+  Menu,
 } from "lucide-react";
 
 interface NavItem {
@@ -20,7 +21,7 @@ interface NavItem {
   label: string;
   icon: any;
   badge?: string;
-  roles?: string[]; // Roles permitidos
+  roles?: string[];
 }
 
 const navItems: NavItem[] = [
@@ -36,6 +37,7 @@ const navItems: NavItem[] = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [userRole, setUserRole] = useState<string>("CAJERO");
+  const [isOpenMobile, setIsOpenMobile] = useState<boolean>(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("activeUser");
@@ -49,28 +51,48 @@ export default function Sidebar() {
     }
   }, [pathname]);
 
-  // Ocultar la barra lateral por completo si estamos en la pantalla de /login
+  // Escuchar evento personalizado para abrir menú móvil desde el Header
+  useEffect(() => {
+    const handleToggleMobileMenu = () => setIsOpenMobile((prev) => !prev);
+    window.addEventListener("toggleMobileMenu", handleToggleMobileMenu);
+    return () => window.removeEventListener("toggleMobileMenu", handleToggleMobileMenu);
+  }, []);
+
+  // Cerrar menú móvil al cambiar de ruta
+  useEffect(() => {
+    setIsOpenMobile(false);
+  }, [pathname]);
+
   if (pathname === "/login") return null;
 
-  // Filtrar los items de navegación según el rol activo
   const filteredNavItems = navItems.filter(
     (item) => !item.roles || item.roles.includes(userRole)
   );
 
-  return (
-    <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between min-h-screen select-none">
+  const sidebarContent = (
+    <div className="flex flex-col justify-between h-full select-none">
       <div>
         {/* Brand Header */}
-        <div className="p-5 border-b border-slate-800/80 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-700 flex items-center justify-center text-white shadow-lg shadow-red-900/30">
-            <Store className="w-6 h-6" />
+        <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-700 flex items-center justify-center text-white shadow-lg shadow-red-900/30">
+              <Store className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="font-bold text-slate-100 text-lg tracking-wide leading-tight">
+                ProtoStock
+              </h1>
+              <p className="text-xs text-rose-400 font-medium">Fiambrería & Almacén</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-slate-100 text-lg tracking-wide leading-tight">
-              ProtoStock
-            </h1>
-            <p className="text-xs text-rose-400 font-medium">Fiambrería & Almacén</p>
-          </div>
+
+          {/* Botón cerrar en móvil */}
+          <button
+            onClick={() => setIsOpenMobile(false)}
+            className="lg:hidden text-slate-400 hover:text-white p-1"
+          >
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
         {/* Navigation Menu */}
@@ -82,9 +104,10 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all duration-150 ${
+                onClick={() => setIsOpenMobile(false)}
+                className={`flex items-center justify-between px-3.5 py-3 rounded-xl font-medium text-sm transition-all duration-150 ${
                   isActive
-                    ? "bg-rose-600 text-white shadow-md shadow-rose-900/20"
+                    ? "bg-rose-600 text-white shadow-md shadow-rose-900/20 font-bold"
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
                 }`}
               >
@@ -127,6 +150,28 @@ export default function Sidebar() {
           </span>
         </div>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Sidebar Escritorio (Fija en pantallas >1024px) */}
+      <aside className="hidden lg:flex w-64 bg-slate-900 border-r border-slate-800 flex-col justify-between min-h-screen select-none shrink-0">
+        {sidebarContent}
+      </aside>
+
+      {/* Drawer Móvil y Tablet (Slide-over) */}
+      {isOpenMobile && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsOpenMobile(false)}
+          />
+          <div className="fixed inset-y-0 left-0 w-72 bg-slate-900 border-r border-slate-800 shadow-2xl z-50 animate-fade-in">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
