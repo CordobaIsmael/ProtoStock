@@ -20,6 +20,8 @@ import {
   FileText,
   Keyboard,
   Tablet,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import ThermalTicket from "@/components/pos/ThermalTicket";
 import { printThermalTicketElement } from "@/utils/printTicket";
@@ -64,6 +66,8 @@ export default function POSPage() {
   const [isFiscalTicket, setIsFiscalTicket] = useState<boolean>(false);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState<boolean>(false);
   const [disableVirtualKeyboard, setDisableVirtualKeyboard] = useState<boolean>(true);
+  const [posPage, setPosPage] = useState<number>(1);
+  const posItemsPerPage = 12;
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -82,8 +86,15 @@ export default function POSPage() {
 
   // Cargar productos
   useEffect(() => {
+    setPosPage(1);
     fetchProducts();
   }, [search]);
+
+  const posTotalPages = Math.max(1, Math.ceil(products.length / posItemsPerPage));
+  const paginatedProducts = products.slice(
+    (posPage - 1) * posItemsPerPage,
+    posPage * posItemsPerPage
+  );
 
   const fetchProducts = async () => {
     try {
@@ -407,39 +418,77 @@ export default function POSPage() {
           </button>
         </div>
 
-        {/* Lista de Productos */}
+        {/* Lista de Productos con Paginación de 12 por página */}
         <div className="flex-1 p-3 sm:p-4 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 content-start">
-          {products.map((prod) => (
-            <button
-              key={prod.id}
-              onClick={() => openAddModal(prod)}
-              className="group p-3 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 hover:border-rose-500/50 flex flex-col justify-between text-left transition-all duration-150 relative overflow-hidden shadow-sm hover:shadow-md"
-            >
-              {prod.isWeighted && (
-                <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                  <Scale className="w-2.5 h-2.5" /> KG
-                </span>
-              )}
-              <div>
-                <span className="text-[10px] text-slate-400 font-mono block">
-                  {prod.code || "SKU-" + prod.id.slice(0, 4)}
-                </span>
-                <h3 className="font-semibold text-xs sm:text-sm text-slate-200 group-hover:text-rose-400 transition-colors line-clamp-2 mt-0.5">
-                  {prod.name}
-                </h3>
-              </div>
+          {paginatedProducts.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-slate-500 text-sm">
+              No hay productos coincidentes para mostrar.
+            </div>
+          ) : (
+            paginatedProducts.map((prod) => (
+              <button
+                key={prod.id}
+                onClick={() => openAddModal(prod)}
+                className="group p-3 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 hover:border-rose-500/50 flex flex-col justify-between text-left transition-all duration-150 relative overflow-hidden shadow-sm hover:shadow-md h-28 sm:h-32"
+              >
+                {prod.isWeighted && (
+                  <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                    <Scale className="w-2.5 h-2.5" /> KG
+                  </span>
+                )}
+                <div>
+                  <span className="text-[10px] text-slate-400 font-mono block">
+                    {prod.code || "SKU-" + prod.id.slice(0, 4)}
+                  </span>
+                  <h3 className="font-semibold text-xs sm:text-sm text-slate-200 group-hover:text-rose-400 transition-colors line-clamp-2 mt-0.5">
+                    {prod.name}
+                  </h3>
+                </div>
 
-              <div className="mt-2.5 pt-1.5 border-t border-slate-800/60 flex items-baseline justify-between">
-                <span className="text-[11px] text-slate-400">
-                  Stk: {prod.currentStock.toFixed(prod.isWeighted ? 2 : 0)}
-                </span>
-                <span className="font-extrabold text-slate-100 text-sm sm:text-base text-rose-400">
-                  ${prod.salePrice.toLocaleString("es-AR")}
-                </span>
-              </div>
-            </button>
-          ))}
+                <div className="mt-2.5 pt-1.5 border-t border-slate-800/60 flex items-baseline justify-between">
+                  <span className="text-[11px] text-slate-400">
+                    Stk: {prod.currentStock.toFixed(prod.isWeighted ? 2 : 0)}
+                  </span>
+                  <span className="font-extrabold text-slate-100 text-sm sm:text-base text-rose-400">
+                    ${prod.salePrice.toLocaleString("es-AR")}
+                  </span>
+                </div>
+              </button>
+            ))
+          )}
         </div>
+
+        {/* Control de Paginación POS */}
+        {products.length > 0 && (
+          <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <span className="text-slate-400 font-medium">
+              Página <strong className="text-white">{posPage}</strong> de{" "}
+              <strong className="text-white">{posTotalPages}</strong> ({products.length} ítems)
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={posPage === 1}
+                onClick={() => setPosPage((prev) => Math.max(prev - 1, 1))}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 transition flex items-center gap-1 font-semibold"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Anterior</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={posPage >= posTotalPages}
+                onClick={() => setPosPage((prev) => Math.min(prev + 1, posTotalPages))}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 transition flex items-center gap-1 font-semibold"
+              >
+                <span>Siguiente</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Panel Derecho: Carrito en Escritorio */}

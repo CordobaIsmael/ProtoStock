@@ -22,6 +22,8 @@ import {
   Download,
   Upload,
   FileText,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 interface Product {
@@ -52,6 +54,10 @@ export default function ProductsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>("CAJERO");
   const [showInactive, setShowInactive] = useState(false);
+
+  // Estado de Paginación (10 por página)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Modal para agregar nuevo producto
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -96,6 +102,10 @@ export default function ProductsPage() {
     fetchProducts();
     fetchCategories();
   }, [search, selectedCategory]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedCategory, showInactive]);
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -274,7 +284,7 @@ export default function ProductsPage() {
     ]);
 
     const csvContent =
-      "data:text/csv;charset=utf-8," +
+      "data:text/csv;charset=utf-8,\uFEFF" +
       [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
 
     const encodedUri = encodeURI(csvContent);
@@ -295,7 +305,7 @@ export default function ProductsPage() {
       "A001,Pan de Miga 1kg,Almacén,UNIDAD,1200,2200,20,5\n" +
       "B001,Coca Cola 2.25L,Bebidas,UNIDAD,1800,2800,30,10";
 
-    const csvContent = "data:text/csv;charset=utf-8," + sampleText;
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + sampleText;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -315,7 +325,6 @@ export default function ProductsPage() {
       const parsedProducts = [];
 
       let startIndex = 0;
-      // Si la primera línea es la cabecera (codigo,nombre...), saltarla
       if (lines[0].toLowerCase().includes("nombre") || lines[0].toLowerCase().includes("codigo")) {
         startIndex = 1;
       }
@@ -372,11 +381,15 @@ export default function ProductsPage() {
     }
   };
 
-  const isAdmin = userRole === "ADMIN";
-  const isEncargado = userRole === "ENCARGADO";
   const isCashier = userRole === "CAJERO";
-
   const displayedProducts = products.filter((p) => showInactive || p.isActive);
+
+  // Paginación
+  const totalPages = Math.max(1, Math.ceil(displayedProducts.length / itemsPerPage));
+  const paginatedProducts = displayedProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="space-y-6 animate-fade-in select-none">
@@ -466,7 +479,7 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Tabla de Productos */}
+      {/* Tabla de Productos con Paginación de 10 */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-300">
@@ -490,14 +503,14 @@ export default function ProductsPage() {
                     Cargando catálogo...
                   </td>
                 </tr>
-              ) : displayedProducts.length === 0 ? (
+              ) : paginatedProducts.length === 0 ? (
                 <tr>
                   <td colSpan={isCashier ? 7 : 9} className="py-8 text-center text-slate-500">
                     No se encontraron productos.
                   </td>
                 </tr>
               ) : (
-                displayedProducts.map((prod) => {
+                paginatedProducts.map((prod) => {
                   const isLowStock = prod.currentStock <= prod.minStock;
                   return (
                     <tr
@@ -561,7 +574,6 @@ export default function ProductsPage() {
                       {!isCashier && (
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {/* Botón Editar Precio / Detalles */}
                             <button
                               onClick={() => handleOpenEditModal(prod)}
                               className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
@@ -570,7 +582,6 @@ export default function ProductsPage() {
                               <Edit2 className="w-4 h-4 text-rose-400" />
                             </button>
 
-                            {/* Botón Baja por Vencimiento / Merma */}
                             <button
                               onClick={() => {
                                 setSelectedProductForShrinkage(prod);
@@ -592,6 +603,43 @@ export default function ProductsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Barra de Paginación */}
+        {displayedProducts.length > 0 && (
+          <div className="p-4 bg-slate-850 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+            <div>
+              Mostrando <span className="font-bold text-white">{(currentPage - 1) * itemsPerPage + 1}</span> a{" "}
+              <span className="font-bold text-white">
+                {Math.min(currentPage * itemsPerPage, displayedProducts.length)}
+              </span>{" "}
+              de <span className="font-bold text-white">{displayedProducts.length}</span> productos
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 transition flex items-center gap-1 font-semibold"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Anterior</span>
+              </button>
+
+              <span className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 font-mono font-bold text-slate-200">
+                Página {currentPage} de {totalPages}
+              </span>
+
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 transition flex items-center gap-1 font-semibold"
+              >
+                <span>Siguiente</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal para Importación Masiva (Excel/CSV) */}
@@ -798,7 +846,7 @@ export default function ProductsPage() {
                       salePrice: parseFloat(e.target.value) || 0,
                     })
                   }
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-sm font-bold focus:outline-none focus:border-rose-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-rose-500"
                 />
               </div>
             </div>
@@ -860,18 +908,15 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Modal para Editar Producto y Cambiar Precios */}
-      {isEditModalOpen && editingProduct && !isCashier && (
+      {/* Modal para Editar Producto */}
+      {isEditModalOpen && !isCashier && editingProduct && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <form
             onSubmit={handleSaveEditProduct}
             className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl animate-fade-in"
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Edit2 className="w-5 h-5 text-rose-400" />
-                <h3 className="font-bold text-xl text-white">Editar Producto / Precio</h3>
-              </div>
+              <h3 className="font-bold text-xl text-white">Editar Producto</h3>
               <button
                 type="button"
                 onClick={() => setIsEditModalOpen(false)}
@@ -884,19 +929,19 @@ export default function ProductsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Código / SKU:
+                  Código de Barras / SKU:
                 </label>
                 <input
                   type="text"
                   value={editFormData.code}
                   onChange={(e) => setEditFormData({ ...editFormData, code: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm font-mono focus:outline-none focus:border-rose-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-rose-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Nombre del Producto:
+                  Nombre del Producto: *
                 </label>
                 <input
                   type="text"
@@ -911,6 +956,60 @@ export default function ProductsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">
+                  Categoría: *
+                </label>
+                <select
+                  required
+                  value={editFormData.categoryId}
+                  onChange={(e) => setEditFormData({ ...editFormData, categoryId: e.target.value })}
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-rose-500"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">
+                  Tipo de Venta:
+                </label>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditFormData({ ...editFormData, isWeighted: true, unitType: "KG" })
+                    }
+                    className={`flex-1 py-1.5 rounded-lg border text-xs font-bold transition ${
+                      editFormData.isWeighted
+                        ? "bg-amber-500/20 border-amber-500 text-amber-300"
+                        : "bg-slate-800 border-slate-700 text-slate-400"
+                    }`}
+                  >
+                    Por Kilo (KG)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditFormData({ ...editFormData, isWeighted: false, unitType: "UNIDAD" })
+                    }
+                    className={`flex-1 py-1.5 rounded-lg border text-xs font-bold transition ${
+                      !editFormData.isWeighted
+                        ? "bg-blue-500/20 border-blue-500 text-blue-300"
+                        : "bg-slate-800 border-slate-700 text-slate-400"
+                    }`}
+                  >
+                    Unidad
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">
                   Precio de Costo ($):
                 </label>
                 <input
@@ -918,14 +1017,17 @@ export default function ProductsPage() {
                   step="0.01"
                   value={editFormData.costPrice}
                   onChange={(e) =>
-                    setEditFormData({ ...editFormData, costPrice: parseFloat(e.target.value) || 0 })
+                    setEditFormData({
+                      ...editFormData,
+                      costPrice: parseFloat(e.target.value) || 0,
+                    })
                   }
                   className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-rose-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-rose-400 mb-1 font-bold">
+                <label className="block text-xs font-semibold text-slate-400 mb-1">
                   Precio de Venta ($): *
                 </label>
                 <input
@@ -934,9 +1036,12 @@ export default function ProductsPage() {
                   required
                   value={editFormData.salePrice}
                   onChange={(e) =>
-                    setEditFormData({ ...editFormData, salePrice: parseFloat(e.target.value) || 0 })
+                    setEditFormData({
+                      ...editFormData,
+                      salePrice: parseFloat(e.target.value) || 0,
+                    })
                   }
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-emerald-400 font-mono text-base font-bold focus:outline-none focus:border-rose-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-rose-500"
                 />
               </div>
             </div>
@@ -951,7 +1056,10 @@ export default function ProductsPage() {
                   step="0.01"
                   value={editFormData.currentStock}
                   onChange={(e) =>
-                    setEditFormData({ ...editFormData, currentStock: parseFloat(e.target.value) || 0 })
+                    setEditFormData({
+                      ...editFormData,
+                      currentStock: parseFloat(e.target.value) || 0,
+                    })
                   }
                   className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-rose-500"
                 />
@@ -959,14 +1067,17 @@ export default function ProductsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Stock Mínimo (Alerta):
+                  Stock Mínimo:
                 </label>
                 <input
                   type="number"
                   step="0.01"
                   value={editFormData.minStock}
                   onChange={(e) =>
-                    setEditFormData({ ...editFormData, minStock: parseFloat(e.target.value) || 0 })
+                    setEditFormData({
+                      ...editFormData,
+                      minStock: parseFloat(e.target.value) || 0,
+                    })
                   }
                   className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-rose-500"
                 />
@@ -985,24 +1096,24 @@ export default function ProductsPage() {
                 type="submit"
                 className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold shadow-lg shadow-rose-950/40"
               >
-                Guardar Cambios
+                Actualizar Cambios
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Modal para Baja por Merma / Vencimiento */}
-      {isShrinkageModalOpen && selectedProductForShrinkage && !isCashier && (
+      {/* Modal Baja por Merma / Vencimiento */}
+      {isShrinkageModalOpen && !isCashier && selectedProductForShrinkage && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <form
             onSubmit={handleSaveShrinkage}
             className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-fade-in"
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <TrendingDown className="w-5 h-5 text-amber-400" />
-                <h3 className="font-bold text-lg text-white">Baja por Vencimiento / Pérdida</h3>
+              <div className="flex items-center gap-2 text-amber-400">
+                <TrendingDown className="w-5 h-5" />
+                <h3 className="font-bold text-lg text-white">Baja de Stock por Merma</h3>
               </div>
               <button
                 type="button"
@@ -1013,19 +1124,13 @@ export default function ProductsPage() {
               </button>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-slate-850 border border-slate-800 space-y-1">
-              <p className="text-xs text-slate-400">Producto a descontar del stock:</p>
-              <p className="font-bold text-white text-base">
-                {selectedProductForShrinkage.name}
-              </p>
-              <p className="text-xs text-amber-400 font-mono">
-                Stock actual: {selectedProductForShrinkage.currentStock} {selectedProductForShrinkage.unitType}
-              </p>
-            </div>
+            <p className="text-xs text-slate-300 font-semibold">
+              Producto: <span className="text-white font-bold">{selectedProductForShrinkage.name}</span>
+            </p>
 
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1">
-                Cantidad a Dar de Baja ({selectedProductForShrinkage.unitType}): *
+                Cantidad a Descontar ({selectedProductForShrinkage.unitType}):
               </label>
               <input
                 type="number"
@@ -1033,24 +1138,21 @@ export default function ProductsPage() {
                 required
                 value={shrinkageQuantity}
                 onChange={(e) => setShrinkageQuantity(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-base font-bold focus:outline-none focus:border-amber-500"
-                autoFocus
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-base font-bold focus:outline-none focus:border-amber-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
-                Motivo de la Baja: *
-              </label>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">Motivo:</label>
               <select
                 value={shrinkageReason}
                 onChange={(e) => setShrinkageReason(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-500"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-500"
               >
                 <option value="Mercadería Vencida">Mercadería Vencida</option>
                 <option value="Devolución a Proveedor">Devolución a Proveedor</option>
-                <option value="Rotura o Falla de Cadena de Frío">Rotura o Falla de Cadena de Frío</option>
-                <option value="Consumo Interno / Muestra">Consumo Interno / Muestra</option>
+                <option value="Rotura / Falla de Frío">Rotura / Falla de Frío</option>
+                <option value="Consumo Interno">Consumo Interno</option>
               </select>
             </div>
 
@@ -1064,9 +1166,9 @@ export default function ProductsPage() {
               </button>
               <button
                 type="submit"
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-extrabold shadow-lg shadow-amber-950/40"
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-bold shadow-lg shadow-amber-950/40"
               >
-                Confirmar Baja de Stock
+                Confirmar Baja
               </button>
             </div>
           </form>
