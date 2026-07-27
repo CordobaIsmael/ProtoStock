@@ -89,43 +89,76 @@ def create_manual():
     add_bullet("👔 Encargado (ENCARGADO): ", "Supervisión de catálogo, precios, lotes, proveedores y compras. Lista de usuarios en modo lectura.")
     add_bullet("💵 Cajero (CAJERO): ", "Acceso enfocado exclusivamente a POS (Ventas) y Apertura/Cierre de turno. Bloqueado para ver ganancias.")
 
-    # 3. Módulo POS
-    add_h1("3. Módulo POS: Punto de Venta & Cobro")
+    # 3. Flujo Completo del Administrador
+    add_h1("3. Flujo de Trabajo del Administrador (Admin User Flow)")
+    p = doc.add_paragraph()
+    p.add_run("A continuación se describe el paso a paso secuencial que realiza el Administrador en su jornada diaria de gestión:").font.size = Pt(11)
+
+    add_h2("Paso 1: Inicio de Sesión & Autenticación")
+    add_bullet("Ingreso: ", "Accede a la pantalla de Login (/login) y selecciona la cuenta @admin con su contraseña o PIN.")
+    add_bullet("Redirección: ", "El sistema verifica las credenciales y lo redirige automáticamente al Dashboard principal.")
+
+    add_h2("Paso 2: Revisión del Estado General (Dashboard)")
+    add_bullet("Lectura de Métricas: ", "Visualiza el total facturado del día, los productos en nivel crítico de stock y los lotes próximos a vencer.")
+
+    add_h2("Paso 3: Apertura de Turno de Caja")
+    add_bullet("Apertura: ", "Ingresa a Turnos & Caja (/caja) para iniciar el turno indicando el monto en efectivo de cambio inicial (ej: $10.000).")
+
+    add_h2("Paso 4: Operación en Mostrador (POS)")
+    add_bullet("Modo Tablet: ", "En caso de operar desde una tablet, activa el 'Modo Tablet: Teclado Virtual OFF'.")
+    add_bullet("Escaneo y Pesaje: ", "Escanea los productos con lector de barras o selecciona fiambres por gramos (100g, 250g, 500g).")
+    add_bullet("Cobro e Impresión: ", "Selecciona el método de pago (Efectivo, Débito, Crédito, Mercado Pago), calcula el vuelto con billetes rápidos e imprime el Ticket Térmico.")
+
+    add_h2("Paso 5: Gestión de Inventario, Precios y Lotes")
+    add_bullet("Actualización de Precios: ", "Desde Productos & Precios (/productos), modifica precios de lista o importa nuevos catálogos desde Excel.")
+    add_bullet("Carga de Compras: ", "Desde Compras & Lotes (/compras), registra nuevos lotes de mercadería ingresando proveedor y fecha de expiración.")
+    add_bullet("Bajas de Stock: ", "Registra mermas o productos vencidos descontándolos de la base de datos.")
+
+    add_h2("Paso 6: Auditoría de Seguridad & Gestión de Personal")
+    add_bullet("Usuarios y Claves: ", "Desde Usuarios & Permisos (/usuarios), crea nuevos usuarios o modifica las contraseñas/PIN de cajeros y encargados.")
+    add_bullet("Auditoría de Retiros: ", "Supervisa las salidas de efectivo registradas por empleados para pago a proveedores.")
+
+    add_h2("Paso 7: Cierre de Jornada & Análisis de Reportes")
+    add_bullet("Arqueo Final: ", "Ingresa a Turnos & Caja (/caja), realiza el recuento físico de billetes y cierra el turno registrando si hubo sobrante o faltante.")
+    add_bullet("Reportes de Ganancia: ", "En Reportes & Métricas (/reportes), analiza la ganancia bruta acumulada y el desglose de ingresos por método de pago.")
+
+    # 4. Módulo POS
+    add_h1("4. Módulo POS: Punto de Venta & Cobro")
     add_bullet("Buscador F2 & Escáner: ", "Búsqueda instantánea por código de barras, SKU o nombre.")
     add_bullet("Modo Tablet (Teclado Virtual OFF): ", "Desactiva el despliegue del teclado de Android/iPadOS para que no tape la pantalla mientras se escanea.")
     add_bullet("Venta Fraccionada por Peso: ", "Accesos directos para 100g, 150g, 200g, 250g, 300g, 500g, 750g y 1kg con cálculo automático.")
     add_bullet("Calculadora de Vuelto & Billetes Rápidos: ", "Botones de billetes ($1.000, $2.000, $5.000, $10.000, $20.000, $50.000) para un cálculo instantáneo del vuelto.")
 
-    # 4. Impresión Térmica
-    add_h1("4. Módulo Impresión de Ticket Térmico")
+    # 5. Impresión Térmica
+    add_h1("5. Módulo Impresión de Ticket Térmico")
     add_bullet("Formatos 58mm y 80mm: ", "Adaptable a tickoteras portátiles mini y de escritorio.")
     add_bullet("Comprobantes: ", "Soporta modo Control Interno (No Fiscal) y Vista AFIP (Factura C).")
     add_bullet("Impresión Limpia: ", "Genera un documento aislado sin encabezados o URLs del navegador.")
 
-    # 5. Productos y Excel
-    add_h1("5. Productos, Precios & Importación desde Excel")
+    # 6. Productos y Excel
+    add_h1("6. Productos, Precios & Importación desde Excel")
     add_bullet("Importación Masiva: ", "Carga de más de 500 productos en 30 segundos importando un archivo CSV/Excel.")
     add_bullet("Exportación de Catálogo: ", "Descarga la base de datos de productos a CSV en 1 clic.")
     add_bullet("Control de Mermas: ", "Baja de stock indicando motivos (Vencido, Devolución, Rotura, Consumo Interno).")
 
-    # 6. Caja Diaria
-    add_h1("6. Turnos & Caja Diaria")
+    # 7. Caja Diaria
+    add_h1("7. Turnos & Caja Diaria")
     add_bullet("Apertura de Turno: ", "Ingreso del dinero en efectivo de cambio inicial.")
     add_bullet("Egresos y Retiros: ", "Registro de salidas de dinero para proveedores con concepto descriptivo.")
     add_bullet("Arqueo Automático: ", "Cálculo de dinero esperado vs contado con reporte de sobrante o faltante.")
 
-    # 7. Compras y Lotes
-    add_h1("7. Compras, Lotes & Proveedores Frecuentes")
+    # 8. Compras y Lotes
+    add_h1("8. Compras, Lotes & Proveedores Frecuentes")
     add_bullet("Proveedores Frecuentes: ", "Gestión de datos de contacto de distribuidores.")
     add_bullet("Carga de Lotes con Vencimiento: ", "Control de fecha de expiración y stock por lote.")
 
-    # 8. Reportes
-    add_h1("8. Reportes & Métricas de Ganancia")
+    # 9. Reportes
+    add_h1("9. Reportes & Métricas de Ganancia")
     add_bullet("Desglose Métodos de Pago: ", "Gráficos independientes para Efectivo, Débito, Crédito y Mercado Pago.")
     add_bullet("Ganancia Bruta: ", "Métrica de utilidad neta acumulada del negocio.")
 
-    # 9. Notificaciones Table
-    add_h1("9. Centro de Notificaciones Inteligentes por Rol")
+    # 10. Notificaciones Table
+    add_h1("10. Centro de Notificaciones Inteligentes por Rol")
     p = doc.add_paragraph("El sistema despliega alertas en vivo según el rol de la persona iniciada:")
 
     table = doc.add_table(rows=6, cols=3)
@@ -146,7 +179,6 @@ def create_manual():
         hdr_cells[idx].text = text
         hdr_cells[idx].paragraphs[0].runs[0].font.bold = True
         hdr_cells[idx].paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 255, 255)
-        # Fondo oscuro en la cabecera
         shading = parse_xml(r'<w:shd {} w:fill="0F172A"/>'.format(nsdecls('w')))
         hdr_cells[idx]._tc.get_or_add_tcPr().append(shading)
 
@@ -161,8 +193,13 @@ def create_manual():
 
     # Guardar archivo Word
     output_path = "d:/ProtoStock/MANUAL_USUARIO_PROTOSTOCK.docx"
-    doc.save(output_path)
-    print(f"Documento Word creado exitosamente en: {output_path}")
+    try:
+        doc.save(output_path)
+        print(f"Documento Word actualizado en: {output_path}")
+    except PermissionError:
+        fallback_path = "d:/ProtoStock/MANUAL_USUARIO_PROTOSTOCK_V2.docx"
+        doc.save(fallback_path)
+        print(f"Documento Word actualizado en: {fallback_path}")
 
 if __name__ == "__main__":
     create_manual()
