@@ -1,6 +1,41 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+function cleanMojibake(str: string): string {
+  if (!str) return str;
+  let s = str.trim();
+
+  // Intento de reparación de codificación UTF-8 / Latin1
+  try {
+    const bytes = Buffer.from(s, "latin1");
+    const utf8Decoded = bytes.toString("utf8");
+    if (!utf8Decoded.includes("") && utf8Decoded !== s) {
+      s = utf8Decoded;
+    }
+  } catch (e) {
+    // Ignorar si falla la conversión de Buffer
+  }
+
+  // Mapeo explícito de corrección de acentos y caracteres distorsionados (mojibake)
+  return s
+    .replace(/AlmacÃ©n|AlmacÃ£\u00a9n|AlmacÃ\u00a9n/gi, "Almacén")
+    .replace(/FiambrerÃa|FiambrerÃ\u00ada/gi, "Fiambrería")
+    .replace(/LÃ¡cteos|LÃ\u00a1cteos/gi, "Lácteos")
+    .replace(/PanaderÃa|PanaderÃ\u00ada/gi, "Panadería")
+    .replace(/Ã©/g, "é")
+    .replace(/Ã¡/g, "á")
+    .replace(/Ã­/g, "í")
+    .replace(/Ã³/g, "ó")
+    .replace(/Ãº/g, "ú")
+    .replace(/Ã±/g, "ñ")
+    .replace(/Ã‰/g, "É")
+    .replace(/Ã/g, "Á")
+    .replace(/Ã/g, "Í")
+    .replace(/Ã/g, "Ó")
+    .replace(/ÃÚ/g, "Ú")
+    .replace(/Ã'/g, "Ñ");
+}
+
 export async function POST(request: Request) {
   try {
     const { products, activeUserRole } = await request.json();
@@ -19,7 +54,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Obtener o crear categorías necesarias
+    // 1. Limpiar categorías corruptas en la base de datos previa
+    const allCategories = await prisma.category.findMany();
+    for (const cat of allCategories) {
+      const cleaned = cleanMojibake(cat.name);
+      if (cleaned !== cat.name) {
+        await prisma.category.update({
+          where: { id: cat.id },
+          data: { name: cleaned },
+        });
+      }
+    }
+
+    // 2. Obtener mapa actualizado de categorías
     const categoryMap: { [key: string]: string } = {};
     const existingCategories = await prisma.category.findMany();
     existingCategories.forEach((c) => {
@@ -33,10 +80,11 @@ export async function POST(request: Request) {
     for (const item of products) {
       if (!item.name) continue;
 
-      const catNameRaw = (item.category || "General").trim();
+      const cleanedProductName = cleanMojibake(item.name);
+      const catNameRaw = cleanMojibake(item.category || "General");
       const catKey = catNameRaw.toLowerCase();
 
-      // Crear categoría si no existe
+      // Crear categoría limpia si no existe
       if (!categoryMap[catKey]) {
         const newCat = await prisma.category.create({
           data: { name: catNameRaw },
@@ -64,7 +112,7 @@ export async function POST(request: Request) {
       }
       if (!existingProd) {
         existingProd = await prisma.product.findFirst({
-          where: { name: { equals: item.name.trim(), mode: "insensitive" } },
+          where: { name: { equals: cleanedProductName, mode: "insensitive" } },
         });
       }
 
@@ -73,7 +121,7 @@ export async function POST(request: Request) {
         await prisma.product.update({
           where: { id: existingProd.id },
           data: {
-            name: item.name.trim(),
+            name: cleanedProductName,
             categoryId,
             costPrice,
             salePrice,
@@ -90,7 +138,7 @@ export async function POST(request: Request) {
         await prisma.product.create({
           data: {
             code,
-            name: item.name.trim(),
+            name: cleanedProductName,
             categoryId,
             costPrice,
             salePrice,

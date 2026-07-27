@@ -70,15 +70,23 @@ products_data = [
 
 headers = ["codigo", "nombre", "categoria", "tipoVenta", "precioCosto", "precioVenta", "stockActual", "stockMinimo"]
 
-# 1. Generar CSV
+# 1. Generar CSV con UTF-8 BOM (utf-8-sig) para compatibilidad total con Excel y Navegadores
 csv_path = "d:/ProtoStock/CATALOGO_INICIAL_PROTOSTOCK.csv"
-with open(csv_path, mode="w", newline="", encoding="utf-8") as f:
-    writer = csv.writer(f)
-    writer.writerow(headers)
-    for row in products_data:
-        writer.writerow(row)
-
-print(f"Archivo CSV generado con exito en: {csv_path}")
+try:
+    with open(csv_path, mode="w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        for row in products_data:
+            writer.writerow(row)
+    print(f"Archivo CSV generado con exito en: {csv_path}")
+except PermissionError:
+    csv_path = "d:/ProtoStock/CATALOGO_INICIAL_PROTOSTOCK_UTF8.csv"
+    with open(csv_path, mode="w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        for row in products_data:
+            writer.writerow(row)
+    print(f"Archivo CSV generado con exito en: {csv_path}")
 
 # 2. Generar Excel (.xlsx) Estilizado
 wb = openpyxl.Workbook()
