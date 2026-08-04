@@ -3,33 +3,48 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   try {
-    const { initialAmount = 0 } = await request.json();
+    const { initialAmount = 0, userId, username } = await request.json();
 
-    const existingShift = await prisma.cashShift.findFirst({
-      where: { status: "ABIERTA" },
-    });
+    let targetUser = null;
+    if (userId) {
+      targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    } else if (username) {
+      targetUser = await prisma.user.findUnique({ where: { username } });
+    } else {
+      targetUser = await prisma.user.findFirst();
+    }
 
-    if (existingShift) {
+    if (!targetUser) {
       return NextResponse.json(
-        { error: "Ya existe un turno de caja abierto" },
+        { error: "No se encontró el usuario para abrir la caja." },
         { status: 400 }
       );
     }
 
-    const activeUser = await prisma.user.findFirst();
-    if (!activeUser) {
+    // Verificar si ESTE usuario ya tiene un turno abierto
+    const existingShift = await prisma.cashShift.findFirst({
+      where: {
+        userId: targetUser.id,
+        status: "ABIERTA",
+      },
+    });
+
+    if (existingShift) {
       return NextResponse.json(
-        { error: "No hay un usuario disponible" },
+        { error: `El usuario ${targetUser.name} ya tiene un turno de caja abierto.` },
         { status: 400 }
       );
     }
 
     const newShift = await prisma.cashShift.create({
       data: {
-        userId: activeUser.id,
-        initialAmount,
-        expectedAmount: initialAmount,
+        userId: targetUser.id,
+        initialAmount: parseFloat(initialAmount) || 0,
+        expectedAmount: parseFloat(initialAmount) || 0,
         status: "ABIERTA",
+      },
+      include: {
+        user: { select: { id: true, name: true, username: true, role: true } },
       },
     });
 

@@ -4,7 +4,14 @@ import { prisma } from "@/lib/prisma";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { items, paymentMethod, discount = 0, customerName = "Consumidor Final" } = body;
+    const {
+      items,
+      paymentMethod,
+      discount = 0,
+      customerName = "Consumidor Final",
+      activeUserId,
+      activeUsername,
+    } = body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
@@ -13,20 +20,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // Obtener un usuario por defecto (Admin/Cajero)
-    const activeUser = await prisma.user.findFirst();
+    // Obtener usuario activo
+    let activeUser = null;
+    if (activeUserId) {
+      activeUser = await prisma.user.findUnique({ where: { id: activeUserId } });
+    } else if (activeUsername) {
+      activeUser = await prisma.user.findUnique({ where: { username: activeUsername } });
+    } else {
+      activeUser = await prisma.user.findFirst();
+    }
+
     if (!activeUser) {
       return NextResponse.json(
-        { error: "No hay un usuario activo registrado" },
+        { error: "No se encontró el usuario que registra la venta." },
         { status: 400 }
       );
     }
 
-    // Buscar caja abierta
-    const activeShift = await prisma.cashShift.findFirst({
-      where: { status: "ABIERTA" },
+    // Buscar la caja abierta Específica de ESTE usuario
+    let activeShift = await prisma.cashShift.findFirst({
+      where: {
+        userId: activeUser.id,
+        status: "ABIERTA",
+      },
       orderBy: { openingDate: "desc" },
     });
+
+    // Fallback: si no tiene caja propia abierta pero hay alguna caja abierta, vincularla
+    if (!activeShift) {
+      activeShift = await prisma.cashShift.findFirst({
+        where: { status: "ABIERTA" },
+        orderBy: { openingDate: "desc" },
+      });
+    }
 
     // Calcular totales
     let subtotal = 0;
@@ -122,7 +148,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // 3. Si la caja está abierta y se paga en efectivo, sumar movimiento de caja
+      // 3. Si la caja del usuario está abierta y se paga en efectivo, sumar al esperado de SU caja
       if (activeShift) {
         await tx.cashShift.update({
           where: { id: activeShift.id },

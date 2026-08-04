@@ -3,29 +3,41 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   try {
-    const { actualAmount, notes } = await request.json();
+    const { shiftId, actualAmount, notes, activeUserRole, userId } = await request.json();
 
-    const activeShift = await prisma.cashShift.findFirst({
-      where: { status: "ABIERTA" },
-    });
+    let activeShift = null;
+
+    if (shiftId) {
+      activeShift = await prisma.cashShift.findUnique({ where: { id: shiftId } });
+    } else if (userId) {
+      activeShift = await prisma.cashShift.findFirst({
+        where: { userId, status: "ABIERTA" },
+      });
+    } else {
+      activeShift = await prisma.cashShift.findFirst({
+        where: { status: "ABIERTA" },
+        orderBy: { openingDate: "desc" },
+      });
+    }
 
     if (!activeShift) {
       return NextResponse.json(
-        { error: "No hay una caja abierta para cerrar" },
+        { error: "No se encontró el turno de caja abierto a cerrar" },
         { status: 400 }
       );
     }
 
-    const difference = actualAmount - activeShift.expectedAmount;
+    const counted = parseFloat(actualAmount) || 0;
+    const difference = counted - activeShift.expectedAmount;
 
     const closedShift = await prisma.cashShift.update({
       where: { id: activeShift.id },
       data: {
-        actualAmount,
+        actualAmount: counted,
         difference,
         closingDate: new Date(),
         status: "CERRADA",
-        notes,
+        notes: notes || (activeUserRole === "ADMIN" ? "Cierre forzoso por Administrador" : null),
       },
     });
 

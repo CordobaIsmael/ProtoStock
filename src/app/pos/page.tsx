@@ -198,6 +198,17 @@ export default function POSPage() {
 
     setIsProcessing(true);
     try {
+      let activeUserId = undefined;
+      let activeUsername = undefined;
+      const stored = localStorage.getItem("activeUser");
+      if (stored) {
+        try {
+          const u = JSON.parse(stored);
+          activeUserId = u.id;
+          activeUsername = u.username;
+        } catch (e) {}
+      }
+
       const res = await fetch("/api/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -208,6 +219,8 @@ export default function POSPage() {
           })),
           paymentMethod,
           discount,
+          activeUserId,
+          activeUsername,
         }),
       });
 

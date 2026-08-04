@@ -5,37 +5,47 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const { type, amount, concept } = await request.json();
+    const { type, amount, concept, userId, shiftId } = await request.json();
 
-    const activeShift = await prisma.cashShift.findFirst({
-      where: { status: "ABIERTA" },
-    });
+    let activeShift = null;
+    if (shiftId) {
+      activeShift = await prisma.cashShift.findUnique({ where: { id: shiftId } });
+    } else if (userId) {
+      activeShift = await prisma.cashShift.findFirst({
+        where: { userId, status: "ABIERTA" },
+      });
+    } else {
+      activeShift = await prisma.cashShift.findFirst({
+        where: { status: "ABIERTA" },
+        orderBy: { openingDate: "desc" },
+      });
+    }
 
-    if (!activeShift) {
+    if (!activeShift || activeShift.status !== "ABIERTA") {
       return NextResponse.json(
         { error: "No hay una caja abierta para registrar movimientos" },
         { status: 400 }
       );
     }
 
-    const activeUser = await prisma.user.findFirst();
-    if (!activeUser) {
-      return NextResponse.json(
-        { error: "No hay usuario disponible" },
-        { status: 400 }
-      );
+    let activeUser = null;
+    if (userId) {
+      activeUser = await prisma.user.findUnique({ where: { id: userId } });
+    } else {
+      activeUser = await prisma.user.findFirst();
     }
 
-    const netAmount = type === "EGRESO" ? -amount : amount;
+    const numericAmount = parseFloat(amount) || 0;
+    const netAmount = type === "EGRESO" ? -numericAmount : numericAmount;
 
     const movement = await prisma.$transaction(async (tx) => {
       const mov = await tx.cashMovement.create({
         data: {
           cashShiftId: activeShift.id,
           type,
-          amount,
+          amount: numericAmount,
           concept,
-          userId: activeUser.id,
+          userId: activeUser?.id || activeShift.userId,
         },
       });
 
