@@ -84,10 +84,47 @@ export default function POSPage() {
     localStorage.setItem("tabletNoKeyboard", String(newVal));
   };
 
+  // Detección e interpretación automática de Código de Barras EAN-13 de Balanzas (Prefijo 20 o 28)
+  const checkScaleBarcode = async (query: string) => {
+    const cleanStr = query.trim();
+    if (cleanStr.length === 13 && (cleanStr.startsWith("20") || cleanStr.startsWith("28")) && /^\d+$/.test(cleanStr)) {
+      const plu = cleanStr.slice(2, 6); // Código del producto (dígitos 3 al 6)
+      const valGramsOrAmount = parseInt(cleanStr.slice(6, 11), 10); // Dígitos 7 al 11
+
+      try {
+        const res = await fetch(`/api/products?onlyActive=true&search=${encodeURIComponent(plu)}`);
+        if (res.ok) {
+          const list: Product[] = await res.json();
+          const matched = list.find((p) => p.code?.endsWith(plu) || p.code === plu) || list[0];
+
+          if (matched) {
+            let weightKg = valGramsOrAmount / 1000; // Si la balanza emite en Gramos (ej. 450g -> 0.450kg)
+            if (matched.salePrice > 0 && valGramsOrAmount > 2000) {
+              // Si la balanza está configurada para emitir importe ($)
+              weightKg = valGramsOrAmount / matched.salePrice;
+            }
+
+            addToCart(matched, Math.max(0.001, weightKg));
+            setSearch("");
+            return true;
+          }
+        }
+      } catch (err) {
+        console.error("Error al procesar etiqueta de balanza:", err);
+      }
+    }
+    return false;
+  };
+
   // Cargar productos
   useEffect(() => {
     setPosPage(1);
-    fetchProducts();
+    const clean = search.trim();
+    if (clean.length === 13 && (clean.startsWith("20") || clean.startsWith("28"))) {
+      checkScaleBarcode(clean);
+    } else {
+      fetchProducts();
+    }
   }, [search]);
 
   const posTotalPages = Math.max(1, Math.ceil(products.length / posItemsPerPage));
