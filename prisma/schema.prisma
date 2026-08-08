@@ -5,22 +5,48 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+}
+
+model Tenant {
+  id           String    @id @default(uuid())
+  slug         String    @unique // Identificador único: emporio-del-sabor, kiosco-trebol
+  name         String    // Nombre del Comercio / Almacén
+  taxId        String?   // CUIT
+  phone        String?
+  email        String?
+  address      String?
+  plan         String    @default("PRO") // STARTER, PRO, ENTERPRISE
+  status       String    @default("ACTIVO") // ACTIVO, SUSPENDIDO_POR_PAGO, INACTIVO
+  dueDate      DateTime? // Fecha de vencimiento de la cuota mensual
+  monthlyFee   Float     @default(25000.0) // Cuota mensual pactada en ARS
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  users      User[]
+  categories Category[]
+  products   Product[]
+  cashShifts CashShift[]
+  sales      Sale[]
+  purchases  Purchase[]
+  suppliers  Supplier[]
 }
 
 model User {
   id           String   @id @default(uuid())
+  tenantId     String?
   name         String
   username     String   @unique
   email        String?  @unique
   passwordHash String
-  role         String   @default("CAJERO") // ADMIN, ENCARGADO, CAJERO
+  role         String   @default("CAJERO") // SUPERADMIN, ADMIN, ENCARGADO, CAJERO
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  tenant         Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   cashShifts     CashShift[]
   cashMovements  CashMovement[]
   sales          Sale[]
@@ -31,12 +57,14 @@ model User {
 
 model Category {
   id          String   @id @default(uuid())
+  tenantId    String?
   name        String   @unique
   description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  tenant        Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   subcategories Subcategory[]
   products      Product[]
 }
@@ -58,6 +86,7 @@ model Subcategory {
 
 model Product {
   id                 String   @id @default(uuid())
+  tenantId           String?
   code               String?  @unique // Código de barras o SKU interno
   name               String
   description        String?
@@ -75,6 +104,7 @@ model Product {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  tenant         Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   category       Category        @relation(fields: [categoryId], references: [id])
   subcategory    Subcategory?    @relation(fields: [subcategoryId], references: [id])
   batches        Batch[]
@@ -121,6 +151,7 @@ model StockMovement {
 
 model CashShift {
   id             String    @id @default(uuid())
+  tenantId       String?
   userId         String
   openingDate    DateTime  @default(now())
   closingDate    DateTime?
@@ -133,6 +164,7 @@ model CashShift {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user          User           @relation(fields: [userId], references: [id])
   cashMovements CashMovement[]
   sales         Sale[]
@@ -153,6 +185,7 @@ model CashMovement {
 
 model Supplier {
   id        String   @id @default(uuid())
+  tenantId  String?
   name      String
   taxId     String? // CUIT / CUIL
   phone     String?
@@ -163,12 +196,14 @@ model Supplier {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tenant    Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   purchases Purchase[]
   batches   Batch[]
 }
 
 model Purchase {
   id            String   @id @default(uuid())
+  tenantId      String?
   supplierId    String
   invoiceNumber String?
   totalAmount   Float
@@ -178,6 +213,7 @@ model Purchase {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  tenant   Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   supplier Supplier       @relation(fields: [supplierId], references: [id])
   user     User           @relation(fields: [userId], references: [id])
   items    PurchaseItem[]
@@ -199,6 +235,7 @@ model PurchaseItem {
 
 model Sale {
   id            String   @id @default(uuid())
+  tenantId      String?
   saleNumber    Int      @unique
   cashShiftId   String?
   userId        String
@@ -211,6 +248,7 @@ model Sale {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  tenant    Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   cashShift CashShift? @relation(fields: [cashShiftId], references: [id])
   user      User       @relation(fields: [userId], references: [id])
   items     SaleItem[]

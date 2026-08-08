@@ -14,6 +14,7 @@ import {
   Store,
   X,
   Menu,
+  Building2,
 } from "lucide-react";
 
 interface NavItem {
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
   { href: "/compras", label: "Compras & Lotes", icon: Truck, roles: ["ADMIN", "ENCARGADO"] },
   { href: "/reportes", label: "Reportes & Métricas", icon: BarChart3, roles: ["ADMIN", "ENCARGADO"] },
   { href: "/usuarios", label: "Usuarios & Permisos", icon: Users, roles: ["ADMIN", "ENCARGADO"] },
+  { href: "/superadmin", label: "Gestión SaaS (Cuotas)", icon: Building2, badge: "SaaS", roles: ["ADMIN", "SUPERADMIN"] },
 ];
 
 export default function Sidebar() {

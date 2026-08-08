@@ -112,7 +112,7 @@ export async function POST(request: Request) {
       }
       if (!existingProd) {
         existingProd = await prisma.product.findFirst({
-          where: { name: { equals: cleanedProductName, mode: "insensitive" } },
+          where: { name: cleanedProductName },
         });
       }
 
