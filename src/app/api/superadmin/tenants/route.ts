@@ -22,10 +22,10 @@ export async function GET() {
     });
 
     return NextResponse.json(tenants);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al obtener comercios:", error);
     return NextResponse.json(
-      { error: "Error interno al obtener los comercios." },
+      { error: `Error al obtener comercios: ${error?.message || "Error de servidor"}` },
       { status: 500 }
     );
   }
@@ -61,6 +61,8 @@ export async function POST(request: Request) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
 
+    const cleanUsername = adminUsername.trim().toLowerCase();
+
     // Verificar si el slug o usuario ya existen
     const existingTenant = await prisma.tenant.findUnique({ where: { slug: cleanSlug } });
     if (existingTenant) {
@@ -70,10 +72,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { username: adminUsername.trim() } });
+    const existingUser = await prisma.user.findFirst({
+      where: { username: cleanUsername },
+    });
     if (existingUser) {
       return NextResponse.json(
-        { error: `El usuario '${adminUsername}' ya está registrado en el sistema.` },
+        { error: `El usuario '${cleanUsername}' ya está registrado en el sistema.` },
         { status: 400 }
       );
     }
@@ -82,46 +86,43 @@ export async function POST(request: Request) {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
 
-    // Crear el comercio y su primer usuario Administrador en una transacción
-    const result = await prisma.$transaction(async (tx) => {
-      const tenant = await tx.tenant.create({
-        data: {
-          name: name.trim(),
-          slug: cleanSlug,
-          taxId: taxId || null,
-          phone: phone || null,
-          email: email || null,
-          address: address || null,
-          plan,
-          status: "ACTIVO",
-          dueDate,
-          monthlyFee: parseFloat(monthlyFee) || 25000,
-        },
-      });
+    // 1. Crear el Comercio
+    const tenant = await prisma.tenant.create({
+      data: {
+        name: name.trim(),
+        slug: cleanSlug,
+        taxId: taxId || null,
+        phone: phone || null,
+        email: email || null,
+        address: address || null,
+        plan,
+        status: "ACTIVO",
+        dueDate,
+        monthlyFee: parseFloat(monthlyFee) || 25000,
+      },
+    });
 
-      const adminUser = await tx.user.create({
-        data: {
-          tenantId: tenant.id,
-          name: adminName || `Admin ${name}`,
-          username: adminUsername.trim(),
-          passwordHash: adminPassword, // En producción se usa bcrypt
-          role: "ADMIN",
-          isActive: true,
-        },
-      });
-
-      return { tenant, adminUser };
+    // 2. Crear el Usuario Administrador del Comercio
+    const adminUser = await prisma.user.create({
+      data: {
+        tenantId: tenant.id,
+        name: adminName || `Admin ${name.trim()}`,
+        username: cleanUsername,
+        passwordHash: adminPassword.trim(),
+        role: "ADMIN",
+        isActive: true,
+      },
     });
 
     return NextResponse.json({
       success: true,
-      tenant: result.tenant,
-      adminUser: result.adminUser,
+      tenant,
+      adminUser,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al crear el comercio:", error);
     return NextResponse.json(
-      { error: "Error interno al registrar el comercio." },
+      { error: `Error al registrar el comercio: ${error?.message || "Servidor no disponible"}` },
       { status: 500 }
     );
   }
