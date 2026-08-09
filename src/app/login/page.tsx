@@ -69,6 +69,8 @@ export default function LoginPage() {
         // Redirección según rol
         if (data.user.role === "CAJERO") {
           router.push("/caja");
+        } else if (data.user.role === "SUPERADMIN") {
+          router.push("/superadmin");
         } else {
           router.push("/");
         }

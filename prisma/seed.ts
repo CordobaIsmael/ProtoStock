@@ -17,7 +17,16 @@ async function main() {
   await prisma.batch.deleteMany({});
   await prisma.user.deleteMany({});
 
-  // 1. Exactamente 3 Usuarios con sus contraseñas requeridas
+  const superAdminUser = await prisma.user.create({
+    data: {
+      username: "superadmin",
+      name: "SuperAdmin SaaS",
+      email: "superadmin@protostock.com",
+      passwordHash: "superadmin123",
+      role: "SUPERADMIN",
+    },
+  });
+
   const adminUser = await prisma.user.create({
     data: {
       username: "admin",
