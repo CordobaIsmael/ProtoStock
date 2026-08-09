@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
@@ -15,16 +17,22 @@ export async function POST(request: Request) {
     const cleanUsername = username.trim().toLowerCase();
     const cleanPassword = password.trim();
 
-    // Obtener todos los usuarios activos y buscar coincidencia insensible a mayúsculas
-    const allUsers = await prisma.user.findMany({
-      where: { isActive: true },
+    // Intentar buscar usuario directamente o mediante lista
+    let user = await prisma.user.findFirst({
+      where: {
+        username: {
+          equals: cleanUsername,
+        },
+      },
     });
 
-    const user = allUsers.find(
-      (u) => u.username.trim().toLowerCase() === cleanUsername
-    );
-
     if (!user) {
+      // Búsqueda alternativa case-insensitive
+      const allUsers = await prisma.user.findMany();
+      user = allUsers.find((u) => u.username.trim().toLowerCase() === cleanUsername) || null;
+    }
+
+    if (!user || !user.isActive) {
       return NextResponse.json(
         { error: "Usuario no encontrado o inactivo" },
         { status: 401 }
@@ -51,7 +59,7 @@ export async function POST(request: Request) {
         },
       });
     } catch (auditErr) {
-      console.warn("Audit log notice:", auditErr);
+      console.warn("Audit log warning:", auditErr);
     }
 
     return NextResponse.json({
@@ -63,10 +71,11 @@ export async function POST(request: Request) {
         role: user.role,
       },
     });
-  } catch (error) {
-    console.error("Error en login:", error);
+  } catch (error: any) {
+    console.error("Error detallado en login:", error);
+    const errorMessage = error?.message || "Error al autenticar usuario";
     return NextResponse.json(
-      { error: "Error al autenticar usuario" },
+      { error: `Error de autenticación: ${errorMessage}` },
       { status: 500 }
     );
   }
