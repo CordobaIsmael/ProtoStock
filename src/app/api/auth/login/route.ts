@@ -15,22 +15,23 @@ export async function POST(request: Request) {
     const cleanUsername = username.trim().toLowerCase();
     const cleanPassword = password.trim();
 
-    const user = await prisma.user.findFirst({
-      where: {
-        username: {
-          equals: cleanUsername,
-        },
-      },
+    // Obtener todos los usuarios activos y buscar coincidencia insensible a mayúsculas
+    const allUsers = await prisma.user.findMany({
+      where: { isActive: true },
     });
 
-    if (!user || !user.isActive) {
+    const user = allUsers.find(
+      (u) => u.username.trim().toLowerCase() === cleanUsername
+    );
+
+    if (!user) {
       return NextResponse.json(
         { error: "Usuario no encontrado o inactivo" },
         { status: 401 }
       );
     }
 
-    // Validación estricta de contraseña
+    // Validación de contraseña
     if (user.passwordHash !== cleanPassword) {
       return NextResponse.json(
         { error: "Contraseña incorrecta" },
@@ -39,15 +40,19 @@ export async function POST(request: Request) {
     }
 
     // Registrar inicio de sesión en Auditoría
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        action: "LOGIN",
-        entity: "User",
-        entityId: user.id,
-        details: `Inicio de sesión exitoso de ${user.name} (${user.role})`,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: "LOGIN",
+          entity: "User",
+          entityId: user.id,
+          details: `Inicio de sesión exitoso de ${user.name} (${user.role})`,
+        },
+      });
+    } catch (auditErr) {
+      console.warn("Audit log notice:", auditErr);
+    }
 
     return NextResponse.json({
       success: true,
