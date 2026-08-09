@@ -1,19 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: "postgresql://postgres.xndfxvivhbhwwnlkzkdv:EmporioDelSabor@aws-0-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true",
-    },
-  },
-});
+const prisma = new PrismaClient();
 
 async function run() {
-  console.log("Probando conexión a Supabase Pooler (6543)...");
+  console.log("Probando conexión a la nueva base de datos Supabase ProtoStock...");
   const users = await prisma.user.findMany();
-  console.log("RESULTADO USUARIOS EN SUPABASE:", users);
+  console.log("USUARIOS REGISTRADOS EN NUEVA BD:", users);
 }
 
 run()
-  .catch((e) => console.error("ERROR EN SUPABASE:", e.message))
+  .catch((e) => console.error("ERROR SUPABASE:", e.message))
   .finally(() => prisma.$disconnect());
