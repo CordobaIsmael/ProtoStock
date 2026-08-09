@@ -71,10 +71,19 @@ export default function POSPage() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const [tenantId, setTenantId] = useState<string>("");
+
   useEffect(() => {
     const saved = localStorage.getItem("tabletNoKeyboard");
     if (saved !== null) {
       setDisableVirtualKeyboard(saved === "true");
+    }
+    const stored = localStorage.getItem("activeUser");
+    if (stored) {
+      try {
+        const u = JSON.parse(stored);
+        if (u.tenantId) setTenantId(u.tenantId);
+      } catch (e) {}
     }
   }, []);
 
@@ -92,7 +101,7 @@ export default function POSPage() {
       const valGramsOrAmount = parseInt(cleanStr.slice(6, 11), 10); // Dígitos 7 al 11
 
       try {
-        const res = await fetch(`/api/products?onlyActive=true&search=${encodeURIComponent(plu)}`);
+        const res = await fetch(`/api/products?onlyActive=true&search=${encodeURIComponent(plu)}&tenantId=${encodeURIComponent(tenantId)}`);
         if (res.ok) {
           const list: Product[] = await res.json();
           const matched = list.find((p) => p.code?.endsWith(plu) || p.code === plu) || list[0];
@@ -125,7 +134,7 @@ export default function POSPage() {
     } else {
       fetchProducts();
     }
-  }, [search]);
+  }, [search, tenantId]);
 
   const posTotalPages = Math.max(1, Math.ceil(products.length / posItemsPerPage));
   const paginatedProducts = products.slice(
@@ -135,7 +144,7 @@ export default function POSPage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch(`/api/products?onlyActive=true&search=${encodeURIComponent(search)}`);
+      const res = await fetch(`/api/products?onlyActive=true&search=${encodeURIComponent(search)}&tenantId=${encodeURIComponent(tenantId)}`);
       if (res.ok) {
         const data = await res.json();
         setProducts(data);

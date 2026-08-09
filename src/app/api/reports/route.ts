@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "30days"; // "today", "week", "month", "30days"
+    const tenantId = searchParams.get("tenantId") || request.headers.get("x-tenant-id") || "";
 
     const now = new Date();
     let startDate = new Date();
@@ -25,11 +26,14 @@ export async function GET(request: Request) {
       startDate.setHours(0, 0, 0, 0);
     }
 
+    const tenantFilter = tenantId ? { tenantId } : {};
+
     // 1. Obtener Ventas en el rango de fechas
     const sales = await prisma.sale.findMany({
       where: {
         createdAt: { gte: startDate },
         status: "COMPLETADA",
+        ...tenantFilter,
       },
       include: {
         items: {
@@ -48,7 +52,7 @@ export async function GET(request: Request) {
     const ticketsCount = sales.length;
     const avgTicket = ticketsCount > 0 ? totalRevenue / ticketsCount : 0;
 
-    // 3. Desglose preciso por Método de Pago (Efectivo, Débito, Crédito, Transferencia/MP)
+    // 3. Desglose preciso por Método de Pago
     const cash = sales
       .filter((s) => s.paymentMethod === "EFECTIVO")
       .reduce((acc, s) => acc + s.totalAmount, 0);
@@ -130,6 +134,7 @@ export async function GET(request: Request) {
       where: {
         createdAt: { gte: startDate },
         movementType: "MERMA",
+        ...(tenantId ? { product: { tenantId } } : {}),
       },
       include: {
         product: true,

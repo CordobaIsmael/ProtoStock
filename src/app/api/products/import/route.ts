@@ -38,7 +38,7 @@ function cleanMojibake(str: string): string {
 
 export async function POST(request: Request) {
   try {
-    const { products, activeUserRole } = await request.json();
+    const { products, activeUserRole, tenantId } = await request.json();
 
     if (activeUserRole === "CAJERO") {
       return NextResponse.json(
@@ -55,7 +55,9 @@ export async function POST(request: Request) {
     }
 
     // 1. Limpiar categorías corruptas en la base de datos previa
-    const allCategories = await prisma.category.findMany();
+    const allCategories = await prisma.category.findMany({
+      where: tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : {},
+    });
     for (const cat of allCategories) {
       const cleaned = cleanMojibake(cat.name);
       if (cleaned !== cat.name) {
@@ -68,7 +70,9 @@ export async function POST(request: Request) {
 
     // 2. Obtener mapa actualizado de categorías
     const categoryMap: { [key: string]: string } = {};
-    const existingCategories = await prisma.category.findMany();
+    const existingCategories = await prisma.category.findMany({
+      where: tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : {},
+    });
     existingCategories.forEach((c) => {
       categoryMap[c.name.trim().toLowerCase()] = c.id;
     });
@@ -87,7 +91,10 @@ export async function POST(request: Request) {
       // Crear categoría limpia si no existe
       if (!categoryMap[catKey]) {
         const newCat = await prisma.category.create({
-          data: { name: catNameRaw },
+          data: {
+            name: catNameRaw,
+            tenantId: tenantId || null,
+          },
         });
         categoryMap[catKey] = newCat.id;
       }
@@ -105,14 +112,22 @@ export async function POST(request: Request) {
       const currentStock = parseFloat(item.currentStock) || 0;
       const minStock = parseFloat(item.minStock) || 5;
 
-      // Buscar si el producto ya existe por código o por nombre
+      // Buscar si el producto ya existe por código o por nombre dentro del comercio
       let existingProd = null;
       if (code) {
-        existingProd = await prisma.product.findUnique({ where: { code } });
+        existingProd = await prisma.product.findFirst({
+          where: {
+            code,
+            ...(tenantId ? { tenantId } : {}),
+          },
+        });
       }
       if (!existingProd) {
         existingProd = await prisma.product.findFirst({
-          where: { name: cleanedProductName },
+          where: {
+            name: cleanedProductName,
+            ...(tenantId ? { tenantId } : {}),
+          },
         });
       }
 
@@ -137,6 +152,7 @@ export async function POST(request: Request) {
         // Crear
         await prisma.product.create({
           data: {
+            tenantId: tenantId || null,
             code,
             name: cleanedProductName,
             categoryId,

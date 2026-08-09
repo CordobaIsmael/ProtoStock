@@ -51,24 +51,31 @@ export default function ReportsPage() {
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>("CAJERO");
+  const [tenantId, setTenantId] = useState<string>("");
 
   useEffect(() => {
+    let tid = "";
     const storedUser = localStorage.getItem("activeUser");
     if (storedUser) {
       try {
         const u = JSON.parse(storedUser);
         setUserRole(u.role || "CAJERO");
+        if (u.tenantId) {
+          tid = u.tenantId;
+          setTenantId(u.tenantId);
+        }
       } catch (e) {
         console.error(e);
       }
     }
-    fetchReports(period);
+    fetchReports(period, tid);
   }, [period]);
 
-  const fetchReports = async (selectedPeriod: string) => {
+  const fetchReports = async (selectedPeriod: string, currentTenantId?: string) => {
     setLoading(true);
+    const tid = currentTenantId !== undefined ? currentTenantId : tenantId;
     try {
-      const res = await fetch(`/api/reports?period=${selectedPeriod}`);
+      const res = await fetch(`/api/reports?period=${selectedPeriod}&tenantId=${encodeURIComponent(tid)}`);
       if (res.ok) {
         const result = await res.json();
         setData(result);
