@@ -62,6 +62,19 @@ export default function SuperAdminPage() {
   });
 
   useEffect(() => {
+    const stored = localStorage.getItem("activeUser");
+    if (stored) {
+      try {
+        const u = JSON.parse(stored);
+        if (u.role !== "SUPERADMIN") {
+          window.location.href = "/";
+          return;
+        }
+      } catch (e) {}
+    } else {
+      window.location.href = "/login";
+      return;
+    }
     fetchTenants();
   }, []);
 
