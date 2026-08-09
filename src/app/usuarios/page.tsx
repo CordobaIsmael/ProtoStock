@@ -15,10 +15,12 @@ import {
   EyeOff,
   Edit3,
   ShieldAlert,
+  Building2,
 } from "lucide-react";
 
 interface UserItem {
   id: string;
+  tenantId?: string | null;
   name: string;
   username: string;
   email: string | null;
@@ -26,6 +28,7 @@ interface UserItem {
   passwordHash?: string;
   isActive: boolean;
   createdAt: string;
+  tenant?: { id: string; name: string; slug: string } | null;
 }
 
 interface AuditItem {
@@ -34,7 +37,7 @@ interface AuditItem {
   entity: string;
   details: string | null;
   createdAt: string;
-  user?: { name: string; username: string; role: string };
+  user?: { name: string; username: string; role: string; tenant?: { name: string } };
 }
 
 export default function UsersPage() {
@@ -43,9 +46,11 @@ export default function UsersPage() {
   const [activeTab, setActiveTab] = useState<"users" | "audit">("users");
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>("CAJERO");
+  const [tenantId, setTenantId] = useState<string>("");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [visiblePasswords, setVisiblePasswords] = useState<{ [key: string]: boolean }>({});
 
-  // Modal para nuevo usuario (solo ADMIN)
+  // Modal para nuevo usuario
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -55,30 +60,38 @@ export default function UsersPage() {
     role: "CAJERO",
   });
 
-  // Modal para cambiar contraseña (solo ADMIN)
+  // Modal para cambiar contraseña
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<UserItem | null>(null);
   const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
     const storedUser = localStorage.getItem("activeUser");
+    let role = "CAJERO";
+    let tid = "";
     if (storedUser) {
       try {
         const u = JSON.parse(storedUser);
-        setUserRole(u.role || "CAJERO");
+        role = u.role || "CAJERO";
+        tid = u.tenantId || "";
+        setUserRole(role);
+        setTenantId(tid);
+        setIsSuperAdmin(role === "SUPERADMIN");
       } catch (e) {
         console.error(e);
       }
     }
-    fetchData();
+    fetchData(tid, role);
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (currentTenantId?: string, currentRole?: string) => {
     setLoading(true);
+    const tid = currentTenantId !== undefined ? currentTenantId : tenantId;
+    const role = currentRole !== undefined ? currentRole : userRole;
     try {
       const [resUsers, resAudit] = await Promise.all([
-        fetch("/api/users"),
-        fetch("/api/audit"),
+        fetch(`/api/users?tenantId=${encodeURIComponent(tid)}&userRole=${encodeURIComponent(role)}`),
+        fetch(`/api/audit?tenantId=${encodeURIComponent(tid)}&userRole=${encodeURIComponent(role)}`),
       ]);
 
       if (resUsers.ok) setUsers(await resUsers.json());
@@ -92,15 +105,15 @@ export default function UsersPage() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (userRole !== "ADMIN") {
-      return alert("Solo el Administrador puede crear usuarios.");
+    if (userRole !== "ADMIN" && userRole !== "SUPERADMIN") {
+      return alert("Acceso restringido a Administradores.");
     }
 
     try {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, activeUserRole: userRole }),
+        body: JSON.stringify({ ...formData, activeUserRole: userRole, tenantId }),
       });
 
       const data = await res.json();
@@ -155,6 +168,12 @@ export default function UsersPage() {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
+      case "SUPERADMIN":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            <Shield className="w-3 h-3 text-purple-400" /> SuperAdmin SaaS
+          </span>
+        );
       case "ADMIN":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
@@ -176,7 +195,7 @@ export default function UsersPage() {
     }
   };
 
-  const isAdmin = userRole === "ADMIN";
+  const canManageUsers = userRole === "ADMIN" || isSuperAdmin;
   const isEncargado = userRole === "ENCARGADO";
   const isCashier = userRole === "CAJERO";
 
@@ -212,6 +231,11 @@ export default function UsersPage() {
             <h1 className="text-2xl font-bold text-white tracking-wide">
               Usuarios, Permisos & Auditoría
             </h1>
+            {isSuperAdmin && (
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                <Building2 className="w-3.5 h-3.5 text-purple-400" /> Vista Global SuperAdmin (Todos los Comercios)
+              </span>
+            )}
             {isEncargado && (
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
                 <Lock className="w-3.5 h-3.5" /> Modo Lectura de Usuarios (Encargado)
@@ -219,13 +243,15 @@ export default function UsersPage() {
             )}
           </div>
           <p className="text-slate-400 text-sm mt-1">
-            {isAdmin
-              ? "Control total de usuarios, contraseñas y trazabilidad de operaciones."
-              : "Consulta de personal activo en el comercio."}
+            {isSuperAdmin
+              ? "Supervisión consolidada de todos los comercios cliente y sus empleados registrados."
+              : canManageUsers
+              ? "Administración exclusiva del personal de tu comercio."
+              : "Consulta de personal activo en el local."}
           </p>
         </div>
 
-        {isAdmin ? (
+        {canManageUsers ? (
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 px-5 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm shadow-lg shadow-rose-950/40 transition active:scale-95 self-start sm:self-auto"
@@ -253,7 +279,7 @@ export default function UsersPage() {
         >
           <Users className="w-4 h-4" /> Lista de Usuarios ({users.length})
         </button>
-        {isAdmin && (
+        {canManageUsers && (
           <button
             onClick={() => setActiveTab("audit")}
             className={`pb-3 px-2 font-bold text-sm flex items-center gap-2 border-b-2 transition ${
@@ -276,18 +302,25 @@ export default function UsersPage() {
                 <tr>
                   <th className="py-3.5 px-4">Nombre Completo</th>
                   <th className="py-3.5 px-4">Usuario</th>
+                  {isSuperAdmin && <th className="py-3.5 px-4">Comercio / Local</th>}
                   <th className="py-3.5 px-4">Rol / Nivel</th>
-                  {isAdmin && <th className="py-3.5 px-4">Contraseña</th>}
+                  {canManageUsers && <th className="py-3.5 px-4">Contraseña</th>}
                   <th className="py-3.5 px-4">Email</th>
                   <th className="py-3.5 px-4 text-center">Estado</th>
-                  {isAdmin && <th className="py-3.5 px-4 text-right">Acciones</th>}
+                  {canManageUsers && <th className="py-3.5 px-4 text-right">Acciones</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium">
                 {loading ? (
                   <tr>
-                    <td colSpan={isAdmin ? 7 : 5} className="py-8 text-center text-slate-500">
+                    <td colSpan={isSuperAdmin ? 8 : canManageUsers ? 7 : 5} className="py-8 text-center text-slate-500">
                       Cargando usuarios...
+                    </td>
+                  </tr>
+                ) : users.length === 0 ? (
+                  <tr>
+                    <td colSpan={isSuperAdmin ? 8 : canManageUsers ? 7 : 5} className="py-8 text-center text-slate-500">
+                      No hay usuarios registrados en este comercio.
                     </td>
                   </tr>
                 ) : (
@@ -295,8 +328,21 @@ export default function UsersPage() {
                     <tr key={u.id} className="hover:bg-slate-800/40">
                       <td className="py-3.5 px-4 font-semibold text-slate-100">{u.name}</td>
                       <td className="py-3.5 px-4 font-mono text-slate-300">@{u.username}</td>
+                      {isSuperAdmin && (
+                        <td className="py-3.5 px-4">
+                          {u.tenant?.name ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-rose-300 border border-slate-700">
+                              🏢 {u.tenant.name}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-950/50 text-purple-300 border border-purple-800/40">
+                              🛡️ Sistema Global (SaaS)
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-3.5 px-4">{getRoleBadge(u.role)}</td>
-                      {isAdmin && (
+                      {canManageUsers && (
                         <td className="py-3.5 px-4 font-mono text-xs text-rose-300">
                           <div className="flex items-center gap-2">
                             <span>
@@ -322,7 +368,7 @@ export default function UsersPage() {
                           Activo
                         </span>
                       </td>
-                      {isAdmin && (
+                      {canManageUsers && (
                         <td className="py-3.5 px-4 text-right">
                           <button
                             onClick={() => {
@@ -346,8 +392,8 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* TAB 2: Historial de Auditoría (solo ADMIN) */}
-      {activeTab === "audit" && isAdmin && (
+      {/* TAB 2: Historial de Auditoría (solo ADMIN & SUPERADMIN) */}
+      {activeTab === "audit" && canManageUsers && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl p-4 space-y-4">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-300">
@@ -355,6 +401,7 @@ export default function UsersPage() {
                 <tr>
                   <th className="py-3 px-4">Fecha & Hora</th>
                   <th className="py-3 px-4">Usuario</th>
+                  {isSuperAdmin && <th className="py-3 px-4">Comercio</th>}
                   <th className="py-3 px-4">Acción</th>
                   <th className="py-3 px-4">Entidad</th>
                   <th className="py-3 px-4">Detalle auditado</th>
@@ -363,7 +410,7 @@ export default function UsersPage() {
               <tbody className="divide-y divide-slate-800/60 font-medium">
                 {auditLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-500">
+                    <td colSpan={isSuperAdmin ? 6 : 5} className="py-8 text-center text-slate-500">
                       No hay registros de auditoría guardados aún.
                     </td>
                   </tr>
@@ -376,6 +423,11 @@ export default function UsersPage() {
                       <td className="py-3 px-4 font-semibold text-slate-200">
                         {log.user?.name || "Sistema"}
                       </td>
+                      {isSuperAdmin && (
+                        <td className="py-3 px-4 text-xs text-rose-300 font-semibold">
+                          {log.user?.tenant?.name || "Global"}
+                        </td>
+                      )}
                       <td className="py-3 px-4">
                         <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 border border-slate-700 text-rose-300 uppercase">
                           {log.action}
@@ -394,8 +446,8 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Modal para Crear Usuario (solo ADMIN) */}
-      {isModalOpen && isAdmin && (
+      {/* Modal para Crear Usuario (solo ADMIN & SUPERADMIN) */}
+      {isModalOpen && canManageUsers && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <form
             onSubmit={handleCreateUser}
@@ -467,7 +519,7 @@ export default function UsersPage() {
               >
                 <option value="CAJERO">Cajero (Solo POS y Apertura/Cierre de su Caja)</option>
                 <option value="ENCARGADO">Encargado (Productos, Stock, Lotes y Compras)</option>
-                <option value="ADMIN">Administrador (Acceso total, Permisos y Métricas)</option>
+                <option value="ADMIN">Administrador de Local (Acceso total al comercio)</option>
               </select>
             </div>
 
@@ -490,8 +542,8 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Modal para Cambiar Contraseña (solo ADMIN) */}
-      {isPasswordModalOpen && selectedUserForPassword && isAdmin && (
+      {/* Modal para Cambiar Contraseña (solo ADMIN & SUPERADMIN) */}
+      {isPasswordModalOpen && selectedUserForPassword && canManageUsers && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <form
             onSubmit={handleChangePassword}
