@@ -1,50 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Store, User, KeyRound, ArrowRight } from "lucide-react";
-
-interface UserItem {
-  id: string;
-  name: string;
-  username: string;
-  role: string;
-}
+import { Store, User, KeyRound, ArrowRight, Lock } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [users, setUsers] = useState<UserItem[]>([]);
-  const [selectedUsername, setSelectedUsername] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch("/api/users");
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data);
-        if (data.length > 0) {
-          const admin = data.find((u: UserItem) => u.role === "ADMIN") || data[0];
-          setSelectedUsername(admin.username);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!password) {
-      setError("Ingresa tu contraseña para continuar");
+    if (!username.trim() || !password.trim()) {
+      setError("Por favor ingresa usuario y contraseña");
       return;
     }
 
@@ -55,7 +27,7 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: selectedUsername,
+          username: username.trim(),
           password: password.trim(),
         }),
       });
@@ -75,7 +47,7 @@ export default function LoginPage() {
           router.push("/");
         }
       } else {
-        setError(data.error || "Credenciales incorrectas");
+        setError(data.error || "Usuario o contraseña incorrectos");
       }
     } catch (err) {
       console.error(err);
@@ -84,8 +56,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-  const selectedUser = users.find((u) => u.username === selectedUsername);
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 select-none">
@@ -105,65 +75,34 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4 relative">
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold text-center">
+            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold text-center animate-fade-in">
               {error}
             </div>
           )}
 
-          {/* Selección de Usuario */}
-          <div className="space-y-1">
-            <label className="block text-xs font-semibold text-slate-400 uppercase">
-              Seleccionar Usuario:
+          {/* Campo Usuario */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">
+              Usuario:
             </label>
-            <div className="grid grid-cols-1 gap-2">
-              {users.map((u) => {
-                const isSelected = selectedUsername === u.username;
-                return (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedUsername(u.username);
-                      setPassword("");
-                      setError("");
-                    }}
-                    className={`p-3 rounded-xl border flex items-center justify-between transition ${
-                      isSelected
-                        ? "bg-rose-600/20 border-rose-500 text-white shadow-md"
-                        : "bg-slate-850 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-rose-400">
-                        <User className="w-4 h-4" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-semibold leading-tight">{u.name}</p>
-                        <p className="text-[11px] font-mono opacity-80">@{u.username}</p>
-                      </div>
-                    </div>
-
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        u.role === "ADMIN"
-                          ? "bg-rose-500/20 text-rose-300 border-rose-500/30"
-                          : u.role === "ENCARGADO"
-                          ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                          : "bg-blue-500/20 text-blue-300 border-blue-500/30"
-                      }`}
-                    >
-                      {u.role}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="relative">
+              <User className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
+              <input
+                type="text"
+                required
+                autoFocus
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Ej: superadmin, admin, cajero"
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-slate-850 border border-slate-700 text-white text-sm focus:outline-none focus:border-rose-500"
+              />
             </div>
           </div>
 
-          {/* Contraseña / PIN */}
+          {/* Campo Contraseña */}
           <div>
             <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">
-              Contraseña / PIN:
+              Contraseña:
             </label>
             <div className="relative">
               <KeyRound className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
@@ -180,10 +119,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || !selectedUsername}
+            disabled={loading || !username || !password}
             className="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white font-extrabold text-sm shadow-lg shadow-rose-950/50 transition flex items-center justify-center gap-2"
           >
-            <span>INGRESAR COMO {selectedUser?.name?.toUpperCase() || "USUARIO"}</span>
+            <span>{loading ? "VERIFICANDO..." : "INGRESAR AL SISTEMA"}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
