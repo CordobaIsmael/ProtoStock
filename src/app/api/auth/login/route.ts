@@ -82,6 +82,7 @@ export async function POST(request: Request) {
               name: dbUser.name,
               username: dbUser.username,
               role: dbUser.role,
+              tenantId: dbUser.tenantId || null,
             },
           });
         }
@@ -132,6 +133,7 @@ export async function POST(request: Request) {
         name: user.name,
         username: user.username,
         role: user.role,
+        tenantId: user.tenantId || null,
       },
     });
   } catch (error: any) {

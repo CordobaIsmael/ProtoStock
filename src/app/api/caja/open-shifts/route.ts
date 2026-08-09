@@ -3,10 +3,16 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const tenantId = searchParams.get("tenantId") || request.headers.get("x-tenant-id") || "";
+
     const openShifts = await prisma.cashShift.findMany({
-      where: { status: "ABIERTA" },
+      where: {
+        status: "ABIERTA",
+        ...(tenantId ? { tenantId } : {}),
+      },
       include: {
         user: {
           select: { id: true, name: true, username: true, role: true },

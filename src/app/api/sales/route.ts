@@ -101,6 +101,7 @@ export async function POST(request: Request) {
       // 1. Crear registro de Venta
       const sale = await tx.sale.create({
         data: {
+          tenantId: activeUser.tenantId || null,
           saleNumber: nextSaleNumber,
           userId: activeUser.id,
           cashShiftId: activeShift?.id || null,

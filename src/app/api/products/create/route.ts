@@ -16,6 +16,7 @@ export async function POST(request: Request) {
       minStock = 0,
       currentStock = 0,
       activeUserRole = "CAJERO",
+      tenantId,
     } = body;
 
     // Protección RBAC: Los cajeros NO pueden crear productos ni alterar stock manualmente
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
 
     const product = await prisma.product.create({
       data: {
+        tenantId: tenantId || null,
         code: code || null,
         name,
         categoryId,

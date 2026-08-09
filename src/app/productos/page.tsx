@@ -89,31 +89,37 @@ export default function ProductsPage() {
   const [csvRawText, setCsvRawText] = useState("");
   const [isImporting, setIsImporting] = useState(false);
 
+  const [tenantId, setTenantId] = useState<string>("");
+
   useEffect(() => {
     const storedUser = localStorage.getItem("activeUser");
+    let activeTenantId = "";
     if (storedUser) {
       try {
         const u = JSON.parse(storedUser);
         setUserRole(u.role || "CAJERO");
+        activeTenantId = u.tenantId || "";
+        setTenantId(activeTenantId);
       } catch (e) {
         console.error(e);
       }
     }
-    fetchProducts();
-    fetchCategories();
+    fetchProducts(activeTenantId);
+    fetchCategories(activeTenantId);
   }, [search, selectedCategory]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [search, selectedCategory, showInactive]);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (currentTenantId?: string) => {
     setIsLoading(true);
+    const tid = currentTenantId !== undefined ? currentTenantId : tenantId;
     try {
       const res = await fetch(
         `/api/products?search=${encodeURIComponent(search)}&categoryId=${encodeURIComponent(
           selectedCategory
-        )}`
+        )}&tenantId=${encodeURIComponent(tid)}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -126,9 +132,10 @@ export default function ProductsPage() {
     }
   };
 
-  const fetchCategories = async () => {
+  const fetchCategories = async (currentTenantId?: string) => {
+    const tid = currentTenantId !== undefined ? currentTenantId : tenantId;
     try {
-      const res = await fetch("/api/categories");
+      const res = await fetch(`/api/categories?tenantId=${encodeURIComponent(tid)}`);
       if (res.ok) {
         const data = await res.json();
         setCategories(data);
@@ -146,7 +153,7 @@ export default function ProductsPage() {
       const res = await fetch("/api/products/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...createFormData, activeUserRole: userRole }),
+        body: JSON.stringify({ ...createFormData, activeUserRole: userRole, tenantId }),
       });
 
       if (res.ok) {
@@ -470,7 +477,7 @@ export default function ProductsPage() {
           </button>
 
           <button
-            onClick={fetchProducts}
+            onClick={() => fetchProducts()}
             className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition"
             title="Recargar"
           >

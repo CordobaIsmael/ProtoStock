@@ -3,17 +3,23 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const tenantId = searchParams.get("tenantId") || request.headers.get("x-tenant-id") || "";
+
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    const tenantFilter = tenantId ? { tenantId } : {};
 
     // 1. Ventas de hoy
     const salesToday = await prisma.sale.findMany({
       where: {
         createdAt: { gte: startOfToday },
         status: "COMPLETADA",
+        ...tenantFilter,
       },
     });
 
@@ -21,14 +27,17 @@ export async function GET() {
     const ticketsCountToday = salesToday.length;
     const avgTicket = ticketsCountToday > 0 ? totalSalesToday / ticketsCountToday : 0;
 
-    // 2. Productos con Stock Bajo / Crítico (SOLO PRODUCTOS ACTIVOS)
+    // 2. Productos con Stock Bajo / Crítico
     const activeProducts = await prisma.product.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...tenantFilter,
+      },
       include: { category: true },
     });
     const realLowStock = activeProducts.filter((p) => p.currentStock <= p.minStock);
 
-    // 3. Lotes próximos a vencer (SOLO DE PRODUCTOS ACTIVOS)
+    // 3. Lotes próximos a vencer
     const expiringBatches = await prisma.batch.findMany({
       where: {
         currentQuantity: { gt: 0 },
@@ -37,7 +46,8 @@ export async function GET() {
           lte: thirtyDaysFromNow,
         },
         product: {
-          isActive: true, // Filtro estricto: El producto debe estar ACTIVO
+          isActive: true,
+          ...tenantFilter,
         },
       },
       include: {
@@ -51,7 +61,10 @@ export async function GET() {
 
     // 4. Caja activa
     const activeShift = await prisma.cashShift.findFirst({
-      where: { status: "ABIERTA" },
+      where: {
+        status: "ABIERTA",
+        ...tenantFilter,
+      },
       include: {
         sales: true,
         cashMovements: true,

@@ -3,10 +3,16 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const tenantId = searchParams.get("tenantId") || request.headers.get("x-tenant-id") || "";
+
     const suppliers = await prisma.supplier.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : {}),
+      },
       orderBy: { name: "asc" },
     });
     return NextResponse.json(suppliers);
@@ -22,7 +28,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, taxId, phone, email, address, notes, activeUserRole } = body;
+    const { name, taxId, phone, email, address, notes, activeUserRole, tenantId } = body;
 
     if (activeUserRole === "CAJERO") {
       return NextResponse.json(
@@ -40,6 +46,7 @@ export async function POST(request: Request) {
 
     const supplier = await prisma.supplier.create({
       data: {
+        tenantId: tenantId || null,
         name,
         taxId: taxId || null,
         phone: phone || null,

@@ -9,16 +9,18 @@ export async function GET(request: Request) {
     const search = searchParams.get("search") || "";
     const categoryId = searchParams.get("categoryId") || "";
     const onlyActive = searchParams.get("onlyActive") === "true";
+    const tenantId = searchParams.get("tenantId") || request.headers.get("x-tenant-id") || "";
 
     const products = await prisma.product.findMany({
       where: {
         AND: [
-          onlyActive ? { isActive: true } : {}, // Si se especifica onlyActive=true (ej. POS), filtrar sólo activos. De lo contrario, traer todos para poder administrarlos.
+          tenantId ? { tenantId } : {},
+          onlyActive ? { isActive: true } : {},
           search
             ? {
                 OR: [
-                  { name: { contains: search } },
-                  { code: { contains: search } },
+                  { name: { contains: search, mode: "insensitive" } },
+                  { code: { contains: search, mode: "insensitive" } },
                 ],
               }
             : {},

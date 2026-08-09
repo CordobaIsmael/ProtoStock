@@ -3,9 +3,13 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const tenantId = searchParams.get("tenantId") || request.headers.get("x-tenant-id") || "";
+
     const purchases = await prisma.purchase.findMany({
+      where: tenantId ? { tenantId } : {},
       include: {
         supplier: true,
         user: true,
@@ -31,7 +35,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { supplierId, invoiceNumber, notes, items } = body;
+    const { supplierId, invoiceNumber, notes, items, activeUserId } = body;
 
     if (!supplierId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
@@ -40,7 +44,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const activeUser = await prisma.user.findFirst();
+    let activeUser = null;
+    if (activeUserId) {
+      activeUser = await prisma.user.findUnique({ where: { id: activeUserId } });
+    } else {
+      activeUser = await prisma.user.findFirst();
+    }
+
     if (!activeUser) {
       return NextResponse.json(
         { error: "No hay un usuario activo para registrar la compra" },
@@ -58,6 +68,7 @@ export async function POST(request: Request) {
       // 1. Crear registro de Compra
       const newPurchase = await tx.purchase.create({
         data: {
+          tenantId: activeUser.tenantId || null,
           supplierId,
           invoiceNumber: invoiceNumber || null,
           totalAmount,

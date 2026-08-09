@@ -3,11 +3,16 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const tenantId = searchParams.get("tenantId") || request.headers.get("x-tenant-id") || "";
+
     const users = await prisma.user.findMany({
+      where: tenantId ? { tenantId } : {},
       select: {
         id: true,
+        tenantId: true,
         name: true,
         username: true,
         email: true,
@@ -32,10 +37,10 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, username, email, password, role = "CAJERO", activeUserRole } = body;
+    const { name, username, email, password, role = "CAJERO", activeUserRole, tenantId } = body;
 
-    // Solo ADMIN puede crear usuarios
-    if (activeUserRole !== "ADMIN") {
+    // Solo ADMIN o SUPERADMIN puede crear usuarios
+    if (activeUserRole !== "ADMIN" && activeUserRole !== "SUPERADMIN") {
       return NextResponse.json(
         { error: "Acceso denegado: El Encargado y Cajero no tienen permiso para agregar nuevos usuarios." },
         { status: 403 }
@@ -62,6 +67,7 @@ export async function POST(request: Request) {
 
     const newUser = await prisma.user.create({
       data: {
+        tenantId: tenantId || null,
         name,
         username: username.trim().toLowerCase(),
         email: email || null,

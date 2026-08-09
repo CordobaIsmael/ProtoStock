@@ -3,10 +3,16 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const tenantId = searchParams.get("tenantId") || request.headers.get("x-tenant-id") || "";
+
     const categories = await prisma.category.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : {}),
+      },
       include: {
         subcategories: {
           where: { isActive: true },

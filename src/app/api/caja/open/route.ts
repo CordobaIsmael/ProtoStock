@@ -38,6 +38,7 @@ export async function POST(request: Request) {
 
     const newShift = await prisma.cashShift.create({
       data: {
+        tenantId: targetUser.tenantId || null,
         userId: targetUser.id,
         initialAmount: parseFloat(initialAmount) || 0,
         expectedAmount: parseFloat(initialAmount) || 0,
