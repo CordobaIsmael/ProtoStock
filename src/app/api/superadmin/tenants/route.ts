@@ -3,8 +3,42 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+async function ensureTenantTableExists() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Tenant" (
+        "id" TEXT NOT NULL,
+        "slug" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "taxId" TEXT,
+        "phone" TEXT,
+        "email" TEXT,
+        "address" TEXT,
+        "plan" TEXT NOT NULL DEFAULT 'PRO',
+        "status" TEXT NOT NULL DEFAULT 'ACTIVO',
+        "dueDate" TIMESTAMP(3),
+        "monthlyFee" DOUBLE PRECISION NOT NULL DEFAULT 25000.0,
+        "notes" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Tenant_pkey" PRIMARY KEY ("id")
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "Tenant_slug_key" ON "Tenant"("slug");
+    `);
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "tenantId" TEXT;
+    `);
+  } catch (err) {
+    console.warn("Auto-migration notice:", err);
+  }
+}
+
 export async function GET() {
   try {
+    await ensureTenantTableExists();
+
     const tenants = await prisma.tenant.findMany({
       include: {
         users: {
@@ -33,6 +67,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    await ensureTenantTableExists();
+
     const body = await request.json();
     const {
       name,
