@@ -94,7 +94,8 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Ej: superadmin, admin, cajero"
-                className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-slate-850 border border-slate-700 text-white text-sm focus:outline-none focus:border-rose-500"
+                style={{ color: "#ffffff", backgroundColor: "#1e293b" }}
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-700 text-white font-medium placeholder-slate-400 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
               />
             </div>
           </div>
@@ -112,7 +113,8 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Ingresa tu contraseña..."
-                className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-slate-850 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-rose-500"
+                style={{ color: "#ffffff", backgroundColor: "#1e293b" }}
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-700 text-white font-mono text-sm placeholder-slate-400 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
               />
             </div>
           </div>
