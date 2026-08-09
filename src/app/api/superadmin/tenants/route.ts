@@ -42,7 +42,11 @@ export async function GET() {
     const tenants = await prisma.tenant.findMany({
       include: {
         users: {
-          select: { id: true, name: true, username: true, role: true },
+          select: { id: true, name: true, username: true, role: true, passwordHash: true },
+        },
+        sales: {
+          where: { status: "COMPLETADA" },
+          select: { totalAmount: true },
         },
         _count: {
           select: {
