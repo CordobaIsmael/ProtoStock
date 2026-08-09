@@ -99,15 +99,7 @@ export async function POST(request: Request) {
 
     const cleanUsername = adminUsername.trim().toLowerCase();
 
-    // Verificar si el slug o usuario ya existen
-    const existingTenant = await prisma.tenant.findUnique({ where: { slug: cleanSlug } });
-    if (existingTenant) {
-      return NextResponse.json(
-        { error: `El identificador '${cleanSlug}' ya existe para otro comercio.` },
-        { status: 400 }
-      );
-    }
-
+    // Verificar usuario único globalmente
     const existingUser = await prisma.user.findFirst({
       where: { username: cleanUsername },
     });
@@ -118,37 +110,62 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fecha límite inicial: 30 días a partir de hoy
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 30);
-
-    // 1. Crear el Comercio
-    const tenant = await prisma.tenant.create({
-      data: {
-        name: name.trim(),
-        slug: cleanSlug,
-        taxId: taxId || null,
-        phone: phone || null,
-        email: email || null,
-        address: address || null,
-        plan,
-        status: "ACTIVO",
-        dueDate,
-        monthlyFee: parseFloat(monthlyFee) || 25000,
-      },
+    // Verificar si el slug ya existe
+    let tenant = await prisma.tenant.findUnique({
+      where: { slug: cleanSlug },
+      include: { users: true },
     });
 
-    // 2. Crear el Usuario Administrador del Comercio
-    const adminUser = await prisma.user.create({
-      data: {
-        tenantId: tenant.id,
-        name: adminName || `Admin ${name.trim()}`,
-        username: cleanUsername,
-        passwordHash: adminPassword.trim(),
-        role: "ADMIN",
-        isActive: true,
-      },
-    });
+    if (tenant) {
+      // Si el comercio existe pero no tiene usuarios asociados, reutilizarlo
+      if (tenant.users.length > 0) {
+        return NextResponse.json(
+          { error: `El identificador '${cleanSlug}' ya pertenece a un comercio con administradores.` },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Crear nuevo comercio si no existía
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+
+      tenant = await prisma.tenant.create({
+        data: {
+          name: name.trim(),
+          slug: cleanSlug,
+          taxId: taxId || null,
+          phone: phone || null,
+          email: email || null,
+          address: address || null,
+          plan,
+          status: "ACTIVO",
+          dueDate,
+          monthlyFee: parseFloat(monthlyFee) || 25000,
+        },
+        include: { users: true },
+      });
+    }
+
+    // Crear el Usuario Administrador del Comercio
+    let adminUser;
+    try {
+      adminUser = await prisma.user.create({
+        data: {
+          tenantId: tenant.id,
+          name: adminName || `Admin ${name.trim()}`,
+          username: cleanUsername,
+          passwordHash: adminPassword.trim(),
+          role: "ADMIN",
+          isActive: true,
+        },
+      });
+    } catch (userCreateErr: any) {
+      // Si falló la creación del usuario y el comercio era totalmente nuevo (sin usuarios previa), hacer rollback
+      if (tenant.users.length === 0) {
+        await prisma.tenant.delete({ where: { id: tenant.id } }).catch(() => {});
+      }
+      throw userCreateErr;
+    }
 
     return NextResponse.json({
       success: true,
