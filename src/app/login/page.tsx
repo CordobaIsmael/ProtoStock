@@ -38,14 +38,14 @@ export default function LoginPage() {
         localStorage.setItem("activeUser", JSON.stringify(data.user));
         window.dispatchEvent(new Event("userSessionChange"));
 
-        // Redirección según rol
-        if (data.user.role === "CAJERO") {
-          router.push("/caja");
-        } else if (data.user.role === "SUPERADMIN") {
-          router.push("/superadmin");
-        } else {
-          router.push("/");
-        }
+        // Redirección completa según rol
+        const targetUrl =
+          data.user.role === "CAJERO"
+            ? "/caja"
+            : data.user.role === "SUPERADMIN"
+            ? "/superadmin"
+            : "/";
+        window.location.href = targetUrl;
       } else {
         setError(data.error || "Usuario o contraseña incorrectos");
       }
