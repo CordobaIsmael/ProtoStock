@@ -22,9 +22,10 @@ import {
   Tablet,
   ChevronLeft,
   ChevronRight,
+  Smartphone,
 } from "lucide-react";
 import ThermalTicket from "@/components/pos/ThermalTicket";
-import { printThermalTicketElement } from "@/utils/printTicket";
+import { printThermalTicketElement, printThermalTicketRawBT } from "@/utils/printTicket";
 
 interface Product {
   id: string;
@@ -908,17 +909,47 @@ export default function POSPage() {
             </div>
 
             {/* Acciones de Impresión */}
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <button
                 onClick={() => printThermalTicketElement("printable-thermal-ticket")}
-                className="flex-1 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center gap-2 border border-slate-700 transition"
+                className="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 border border-slate-700 transition"
               >
                 <Printer className="w-4 h-4 text-emerald-400" />
-                <span>Imprimir Ticket</span>
+                <span>Imprimir Ticket (PC / Navegador)</span>
               </button>
+
+              <button
+                onClick={() =>
+                  printThermalTicketRawBT({
+                    ticketNumber: lastSale.saleNumber,
+                    date: new Date(lastSale.createdAt || Date.now()).toLocaleString("es-AR"),
+                    cashierName: lastSale.user?.name || "Cajero",
+                    customerName: lastSale.customerName || "Consumidor Final",
+                    items:
+                      lastSale.items?.map((item: any) => ({
+                        name: item.product?.name || "Producto",
+                        quantity: item.quantity,
+                        unitPrice: item.unitPrice,
+                        subtotal: item.subtotal,
+                        isWeighted: item.product?.isWeighted || false,
+                      })) || [],
+                    totalAmount: lastSale.totalAmount,
+                    paymentMethod: lastSale.paymentMethod,
+                    cashTendered: lastSale.cashTenderedVal ?? lastSale.totalAmount,
+                    changeDue: lastSale.changeDueVal ?? 0,
+                    isFiscal: isFiscalTicket,
+                  })
+                }
+                className="flex-1 py-3 rounded-xl bg-blue-950/70 hover:bg-blue-900 text-blue-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 border border-blue-700/60 transition"
+                title="Impresión directa por Bluetooth en Android mediante la app RawBT"
+              >
+                <Smartphone className="w-4 h-4 text-blue-400" />
+                <span>Imprimir Bluetooth (RawBT)</span>
+              </button>
+
               <button
                 onClick={() => setLastSale(null)}
-                className="flex-1 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-sm shadow-lg shadow-rose-950/40 transition"
+                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-rose-950/40 transition"
               >
                 Siguiente Venta
               </button>
