@@ -153,13 +153,11 @@ export function printThermalTicketRawBT(data: RawBTTicketData) {
   const fullText = lines.join("\n");
 
   try {
-    // Codificar a UTF-8 Base64 para RawBT Intent
-    const base64Data = btoa(unescape(encodeURIComponent(fullText)));
-    const intentUrl = `intent:data:text/plain;base64,${base64Data}#Intent;scheme=rawbt;package=ru.a404.rawbt;end;`;
+    const encodedText = encodeURIComponent(fullText);
+    const intentUrl = `intent:${encodedText}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
     window.location.href = intentUrl;
   } catch (err) {
     console.error("Error al enviar Intent a RawBT:", err);
-    // Fallback a impresión estándar del navegador
     printThermalTicketElement();
   }
 }
