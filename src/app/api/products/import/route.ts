@@ -36,6 +36,15 @@ function cleanMojibake(str: string): string {
     .replace(/Ã'/g, "Ñ");
 }
 
+function normalizeStr(text: string): string {
+  if (!text) return "";
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 export async function POST(request: Request) {
   try {
     const { products, activeUserRole, tenantId } = await request.json();
@@ -74,7 +83,12 @@ export async function POST(request: Request) {
       where: tenantId ? { OR: [{ tenantId }, { tenantId: null }] } : {},
     });
     existingCategories.forEach((c) => {
-      categoryMap[c.name.trim().toLowerCase()] = c.id;
+      categoryMap[normalizeStr(c.name)] = c.id;
+    });
+
+    // 3. Obtener catálogo existente del comercio para matcheo insensible a tildes/mayúsculas
+    const existingStoreProducts = await prisma.product.findMany({
+      where: tenantId ? { tenantId } : {},
     });
 
     const adminUser = await prisma.user.findFirst();
@@ -86,7 +100,7 @@ export async function POST(request: Request) {
 
       const cleanedProductName = cleanMojibake(item.name);
       const catNameRaw = cleanMojibake(item.category || "General");
-      const catKey = catNameRaw.toLowerCase();
+      const catKey = normalizeStr(catNameRaw);
 
       // Crear categoría limpia si no existe
       if (!categoryMap[catKey]) {
@@ -112,27 +126,19 @@ export async function POST(request: Request) {
       const currentStock = parseFloat(item.currentStock) || 0;
       const minStock = parseFloat(item.minStock) || 5;
 
-      // Buscar si el producto ya existe por código o por nombre dentro del comercio
+      const normItemName = normalizeStr(cleanedProductName);
+
+      // Buscar si el producto ya existe por Código o por Nombre (insensible a tildes/mayúsculas)
       let existingProd = null;
       if (code) {
-        existingProd = await prisma.product.findFirst({
-          where: {
-            code,
-            ...(tenantId ? { tenantId } : {}),
-          },
-        });
+        existingProd = existingStoreProducts.find((p) => p.code === code) || null;
       }
       if (!existingProd) {
-        existingProd = await prisma.product.findFirst({
-          where: {
-            name: cleanedProductName,
-            ...(tenantId ? { tenantId } : {}),
-          },
-        });
+        existingProd = existingStoreProducts.find((p) => normalizeStr(p.name) === normItemName) || null;
       }
 
       if (existingProd) {
-        // Actualizar
+        // Actualizar precio y datos del producto existente
         await prisma.product.update({
           where: { id: existingProd.id },
           data: {
@@ -149,8 +155,8 @@ export async function POST(request: Request) {
         });
         updatedCount++;
       } else {
-        // Crear
-        await prisma.product.create({
+        // Crear nuevo producto
+        const newProd = await prisma.product.create({
           data: {
             tenantId: tenantId || null,
             code,
@@ -165,6 +171,7 @@ export async function POST(request: Request) {
             isActive: true,
           },
         });
+        existingStoreProducts.push(newProd); // Agregar al array local para evitar duplicados en el bucle
         importedCount++;
       }
     }
@@ -175,7 +182,7 @@ export async function POST(request: Request) {
         userId: adminUser?.id || null,
         action: "IMPORTAR_PRODUCTOS_EXCEL",
         entity: "Product",
-        details: `Importación masiva completada: ${importedCount} creados, ${updatedCount} actualizados.`,
+        details: `Actualización masiva completada: ${updatedCount} precios/productos actualizados, ${importedCount} creados.`,
       },
     });
 

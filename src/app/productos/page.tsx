@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Package,
   Plus,
@@ -274,7 +274,24 @@ export default function ProductsPage() {
     }
   };
 
-  // Exportar catálogo a CSV
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Leer archivo Excel/CSV seleccionado por el usuario
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target?.result as string;
+      if (content) {
+        setCsvRawText(content);
+      }
+    };
+    reader.readAsText(file, "UTF-8");
+  };
+
+  // Exportar catálogo completo a Excel/CSV con BOM UTF-8
   const handleExportCSV = () => {
     if (products.length === 0) return alert("No hay productos para exportar");
 
@@ -290,14 +307,12 @@ export default function ProductsPage() {
       p.minStock,
     ]);
 
-    const csvContent =
-      "data:text/csv;charset=utf-8,\uFEFF" +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
+    const csvData = [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csvData], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `catalogo_protostock_${Date.now()}.csv`);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `catalogo_precios_protostock_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -310,21 +325,23 @@ export default function ProductsPage() {
       "F001,Jamón Cocido Paladini,Fiambrería,KG,4500,7800,12.5,3\n" +
       "F002,Queso Tybo Barra,Fiambrería,KG,3800,6900,15,3\n" +
       "A001,Pan de Miga 1kg,Almacén,UNIDAD,1200,2200,20,5\n" +
-      "B001,Coca Cola 2.25L,Bebidas,UNIDAD,1800,2800,30,10";
+      "B001,Coca Cola 2.25L,Bebidas,UNIDAD,1800,3000,30,10\n" +
+      "B002,Sprite 2.25L,Bebidas,UNIDAD,1800,3000,25,10\n" +
+      "B003,Fanta 2.25L,Bebidas,UNIDAD,1800,3000,20,10";
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + sampleText;
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob(["\uFEFF" + sampleText], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "plantilla_importacion_protostock.csv");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "plantilla_actualizacion_precios.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Procesar importación masiva de CSV
+  // Procesar actualización e importación masiva desde CSV/Excel
   const handleProcessImport = async () => {
-    if (!csvRawText.trim()) return alert("Ingresa o pega los datos en formato CSV/Excel");
+    if (!csvRawText.trim()) return alert("Por favor selecciona un archivo o pega el contenido en formato CSV/Excel.");
 
     try {
       setIsImporting(true);
@@ -332,7 +349,7 @@ export default function ProductsPage() {
       const parsedProducts = [];
 
       let startIndex = 0;
-      if (lines[0].toLowerCase().includes("nombre") || lines[0].toLowerCase().includes("codigo")) {
+      if (lines[0].toLowerCase().includes("nombre") || lines[0].toLowerCase().includes("codigo") || lines[0].toLowerCase().includes("categoria")) {
         startIndex = 1;
       }
 
@@ -340,17 +357,20 @@ export default function ProductsPage() {
         const line = lines[i].trim();
         if (!line) continue;
 
-        const cols = line.split(",").map((c) => c.replace(/^"|"$/g, "").trim());
+        // Auto-detectar delimitador de Excel (punto y coma ;, coma , o tabulacion \t)
+        const delimiter = line.includes(";") ? ";" : line.includes("\t") ? "\t" : ",";
+        const cols = line.split(delimiter).map((c) => c.replace(/^"|"$/g, "").trim());
+
         if (cols.length >= 2) {
           parsedProducts.push({
             code: cols[0] || null,
             name: cols[1] || "",
             category: cols[2] || "General",
-            unitType: cols[3] || "KG",
-            costPrice: cols[4] || 0,
-            salePrice: cols[5] || 0,
-            currentStock: cols[6] || 0,
-            minStock: cols[7] || 5,
+            unitType: cols[3] || "UNIDAD",
+            costPrice: parseFloat(cols[4]?.replace(",", ".")) || 0,
+            salePrice: parseFloat(cols[5]?.replace(",", ".")) || 0,
+            currentStock: parseFloat(cols[6]?.replace(",", ".")) || 0,
+            minStock: parseFloat(cols[7]?.replace(",", ".")) || 5,
           });
         }
       }
@@ -366,23 +386,25 @@ export default function ProductsPage() {
         body: JSON.stringify({
           products: parsedProducts,
           activeUserRole: userRole,
+          tenantId,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
         alert(
-          `¡Importación exitosa!\n- Nuevos creados: ${data.importedCount}\n- Actualizados: ${data.updatedCount}`
+          `🎉 ¡Actualización Masiva Completada con Éxito!\n\n• Precios/Productos actualizados: ${data.updatedCount}\n• Productos nuevos creados: ${data.importedCount}`
         );
         setIsImportModalOpen(false);
         setCsvRawText("");
         fetchProducts();
         fetchCategories();
       } else {
-        alert(data.error || "Error durante la importación.");
+        alert(data.error || "Error durante la actualización de precios.");
       }
     } catch (err) {
       console.error(err);
+      alert("Error de conexión al procesar el archivo.");
     } finally {
       setIsImporting(false);
     }
@@ -681,15 +703,39 @@ export default function ProductsPage() {
               </div>
             </div>
 
+            {/* Selector de Archivo Excel / CSV */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-700 hover:border-amber-500/50 rounded-xl bg-slate-850 hover:bg-slate-800 transition cursor-pointer group"
+            >
+              <FileSpreadsheet className="w-8 h-8 text-amber-400 group-hover:scale-110 transition mb-1" />
+              <p className="text-xs font-bold text-white">Haz clic aquí para seleccionar tu archivo Excel / CSV</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Formatos compatibles: .csv, .xlsx, .txt (Delimitado por comas, punto y coma o tabulaciones)</p>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".csv, .txt, .tsv, .xlsx, .xls"
+                className="hidden"
+              />
+            </div>
+
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">
-                Pega aquí el contenido de tu archivo CSV o Excel:
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-400">
+                  O pega directamente el contenido copiado desde Excel:
+                </label>
+                {csvRawText.trim() && (
+                  <span className="text-[10px] text-emerald-400 font-mono font-bold">
+                    ✓ {csvRawText.trim().split("\n").length} filas listas para procesar
+                  </span>
+                )}
+              </div>
               <textarea
-                rows={8}
+                rows={6}
                 value={csvRawText}
                 onChange={(e) => setCsvRawText(e.target.value)}
-                placeholder="F001,Jamón Cocido Paladini,Fiambrería,KG,4500,7800,12.5,3&#10;A001,Pan de Miga 1kg,Almacén,UNIDAD,1200,2200,20,5"
+                placeholder="codigo,nombre,categoria,tipoVenta,precioCosto,precioVenta,stockActual,stockMinimo&#10;B001,Coca Cola 2.25L,Bebidas,UNIDAD,1800,3000,30,10&#10;B002,Sprite 2.25L,Bebidas,UNIDAD,1800,3000,25,10"
                 className="w-full p-3.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-amber-500"
               />
             </div>
