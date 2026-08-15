@@ -291,7 +291,7 @@ export default function ProductsPage() {
     reader.readAsText(file, "UTF-8");
   };
 
-  // Exportar catálogo completo a Excel/CSV con BOM UTF-8
+  // Exportar catálogo completo a Excel/CSV con sep=; para celdas independientes (Columna A, B, C, D...)
   const handleExportCSV = () => {
     if (products.length === 0) return alert("No hay productos para exportar");
 
@@ -307,7 +307,8 @@ export default function ProductsPage() {
       p.minStock,
     ]);
 
-    const csvData = [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    // sep=;\n le indica a Excel que separe cada dato en su propia celda/columna (A, B, C, D, E, F, G, H)
+    const csvData = "sep=;\n" + [headers.join(";"), ...rows.map((e) => e.join(";"))].join("\n");
     const blob = new Blob(["\uFEFF" + csvData], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -321,13 +322,14 @@ export default function ProductsPage() {
   // Descargar plantilla CSV de ejemplo
   const handleDownloadSampleCSV = () => {
     const sampleText =
-      "codigo,nombre,categoria,tipoVenta,precioCosto,precioVenta,stockActual,stockMinimo\n" +
-      "F001,Jamón Cocido Paladini,Fiambrería,KG,4500,7800,12.5,3\n" +
-      "F002,Queso Tybo Barra,Fiambrería,KG,3800,6900,15,3\n" +
-      "A001,Pan de Miga 1kg,Almacén,UNIDAD,1200,2200,20,5\n" +
-      "B001,Coca Cola 2.25L,Bebidas,UNIDAD,1800,3000,30,10\n" +
-      "B002,Sprite 2.25L,Bebidas,UNIDAD,1800,3000,25,10\n" +
-      "B003,Fanta 2.25L,Bebidas,UNIDAD,1800,3000,20,10";
+      "sep=;\n" +
+      "codigo;nombre;categoria;tipoVenta;precioCosto;precioVenta;stockActual;stockMinimo\n" +
+      "F001;Jamón Cocido Paladini;Fiambrería;KG;4500;7800;12.5;3\n" +
+      "F002;Queso Tybo Barra;Fiambrería;KG;3800;6900;15;3\n" +
+      "A001;Pan de Miga 1kg;Almacén;UNIDAD;1200;2200;20;5\n" +
+      "B001;Coca Cola 2.25L;Bebidas;UNIDAD;1800;3000;30;10\n" +
+      "B002;Sprite 2.25L;Bebidas;UNIDAD;1800;3000;25;10\n" +
+      "B003;Fanta 2.25L;Bebidas;UNIDAD;1800;3000;20;10";
 
     const blob = new Blob(["\uFEFF" + sampleText], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -345,19 +347,20 @@ export default function ProductsPage() {
 
     try {
       setIsImporting(true);
-      const lines = csvRawText.trim().split("\n");
+      const rawLines = csvRawText.trim().split("\n");
+      const lines = rawLines.filter((l) => !l.toLowerCase().startsWith("sep="));
       const parsedProducts = [];
 
       let startIndex = 0;
-      if (lines[0].toLowerCase().includes("nombre") || lines[0].toLowerCase().includes("codigo") || lines[0].toLowerCase().includes("categoria")) {
+      if (lines.length > 0 && (lines[0].toLowerCase().includes("nombre") || lines[0].toLowerCase().includes("codigo") || lines[0].toLowerCase().includes("categoria"))) {
         startIndex = 1;
       }
 
       for (let i = startIndex; i < lines.length; i++) {
         const line = lines[i].trim();
-        if (!line) continue;
+        if (!line || line.toLowerCase().startsWith("sep=")) continue;
 
-        // Auto-detectar delimitador de Excel (punto y coma ;, coma , o tabulacion \t)
+        // Auto-detectar delimitador de Excel (punto y coma ;, tabulacion \t o coma ,)
         const delimiter = line.includes(";") ? ";" : line.includes("\t") ? "\t" : ",";
         const cols = line.split(delimiter).map((c) => c.replace(/^"|"$/g, "").trim());
 
