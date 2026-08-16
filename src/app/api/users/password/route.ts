@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {
   try {
     const { targetUserId, newPassword, activeUserRole } = await request.json();
 
-    if (activeUserRole !== "ADMIN") {
+    if (activeUserRole !== "ADMIN" && activeUserRole !== "SUPERADMIN") {
       return NextResponse.json(
         { error: "Acceso denegado: Solo el Administrador puede cambiar contraseñas." },
         { status: 403 }
@@ -19,9 +20,11 @@ export async function POST(request: Request) {
       );
     }
 
+    const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
+
     const updatedUser = await prisma.user.update({
       where: { id: targetUserId },
-      data: { passwordHash: newPassword.trim() },
+      data: { passwordHash: hashedPassword },
     });
 
     // Auditoría
@@ -32,7 +35,7 @@ export async function POST(request: Request) {
         action: "CAMBIAR_CONTRASEÑA",
         entity: "User",
         entityId: updatedUser.id,
-        details: `Contraseña modificada para el usuario @${updatedUser.username} (${updatedUser.name})`,
+        details: `Contraseña modificada y encriptada (Bcrypt) para el usuario @${updatedUser.username} (${updatedUser.name})`,
       },
     });
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
 
@@ -131,12 +132,18 @@ export async function PUT(request: Request, { params }: { params: { id: string }
           }
         }
 
+        const newPasswordHash = adminPassword
+          ? (adminPassword.trim().startsWith("$2b$") || adminPassword.trim().startsWith("$2a$")
+              ? adminPassword.trim()
+              : await bcrypt.hash(adminPassword.trim(), 10))
+          : adminUser.passwordHash;
+
         await prisma.user.update({
           where: { id: adminUser.id },
           data: {
             name: adminName ? adminName.trim() : adminUser.name,
             username: cleanUsername,
-            passwordHash: adminPassword ? adminPassword.trim() : adminUser.passwordHash,
+            passwordHash: newPasswordHash,
           },
         });
       }

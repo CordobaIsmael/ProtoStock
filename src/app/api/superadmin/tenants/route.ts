@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
 
@@ -153,12 +154,13 @@ export async function POST(request: Request) {
     // Crear el Usuario Administrador del Comercio
     let adminUser;
     try {
+      const hashedPassword = await bcrypt.hash(adminPassword.trim(), 10);
       adminUser = await prisma.user.create({
         data: {
           tenantId: tenant.id,
           name: adminName || `Admin ${name.trim()}`,
           username: cleanUsername,
-          passwordHash: adminPassword.trim(),
+          passwordHash: hashedPassword,
           role: "ADMIN",
           isActive: true,
         },
