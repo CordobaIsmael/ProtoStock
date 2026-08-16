@@ -87,6 +87,15 @@ export async function POST(request: Request) {
               }).catch(() => {});
             }
 
+            // Si el SuperAdmin tiene 2FA activado, requerir el código de 6 dígitos
+            if (dbUser.twoFactorEnabled && dbUser.twoFactorSecret) {
+              return NextResponse.json({
+                success: true,
+                requires2FA: true,
+                userId: dbUser.id,
+              });
+            }
+
             const sessionUser = {
               id: dbUser.id,
               name: dbUser.name,
@@ -99,6 +108,7 @@ export async function POST(request: Request) {
 
             return NextResponse.json({
               success: true,
+              requires2FA: false,
               user: sessionUser,
             });
           }
@@ -120,6 +130,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         success: true,
+        requires2FA: false,
         user: fallbackUser,
       });
     }
@@ -173,6 +184,15 @@ export async function POST(request: Request) {
       })
       .catch(() => {});
 
+    // Si tiene 2FA activado (SuperAdmin u otros roles), requerir código de 6 dígitos
+    if (user.twoFactorEnabled && user.twoFactorSecret) {
+      return NextResponse.json({
+        success: true,
+        requires2FA: true,
+        userId: user.id,
+      });
+    }
+
     const sessionUser = {
       id: user.id,
       name: user.name,
@@ -181,11 +201,12 @@ export async function POST(request: Request) {
       tenantId: user.tenantId || null,
     };
 
-    // Crear Cookie de Sesión HTTP-Only firmada con JWT (Inaccesible desde JS del cliente)
+    // Crear Cookie de Sesión HTTP-Only firmada con JWT
     await setSessionCookie(sessionUser);
 
     return NextResponse.json({
       success: true,
+      requires2FA: false,
       user: sessionUser,
     });
   } catch (error: any) {

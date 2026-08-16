@@ -41,11 +41,13 @@ model User {
   name         String
   username     String   @unique
   email        String?  @unique
-  passwordHash String
-  role         String   @default("CAJERO") // SUPERADMIN, ADMIN, ENCARGADO, CAJERO
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  passwordHash     String
+  role             String   @default("CAJERO") // SUPERADMIN, ADMIN, ENCARGADO, CAJERO
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   tenant         Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   cashShifts     CashShift[]

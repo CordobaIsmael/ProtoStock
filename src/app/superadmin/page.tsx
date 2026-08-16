@@ -102,6 +102,59 @@ export default function SuperAdminPage() {
     adminPassword: "",
   });
 
+  // Modal Configuración de Autenticación 2FA
+  const [is2FAModalOpen, setIs2FAModalOpen] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [secretKey, setSecretKey] = useState("");
+  const [testCode, setTestCode] = useState("");
+  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+  const [setupMessage, setSetupMessage] = useState("");
+
+  const handleOpen2FAModal = async () => {
+    setIs2FAModalOpen(true);
+    setSetupMessage("");
+    setTestCode("");
+    try {
+      const res = await fetch("/api/auth/2fa/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "superadmin" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setQrCodeUrl(data.qrCodeDataUrl);
+        setSecretKey(data.secret);
+        setIs2FAEnabled(data.twoFactorEnabled);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleActivate2FA = async () => {
+    if (!testCode || testCode.trim().length !== 6) {
+      return alert("Ingresa el código de 6 dígitos producido por tu aplicación de autenticación.");
+    }
+
+    try {
+      const res = await fetch("/api/auth/2fa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "superadmin", code: testCode }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIs2FAEnabled(true);
+        setSetupMessage("🎉 ¡Autenticación de 2 Factores (2FA) activada con éxito!");
+        alert("🔒 ¡Autenticación de 2 Factores activada con éxito! A partir de ahora tu inicio de sesión requerirá el código de 6 dígitos.");
+      } else {
+        alert(data.error || "Código incorrecto");
+      }
+    } catch (e) {
+      alert("Error al verificar código");
+    }
+  };
+
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -348,13 +401,23 @@ export default function SuperAdminPage() {
           </div>
         </div>
 
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="relative flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-950/50 transition active:scale-95 self-start sm:self-auto"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Dar de Alta Nuevo Comercio</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleOpen2FAModal}
+            className="relative flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-bold text-sm shadow-lg transition active:scale-95"
+          >
+            <ShieldCheck className="w-5 h-5 text-amber-400" />
+            <span>Seguridad 2FA</span>
+          </button>
+
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="relative flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-950/50 transition active:scale-95"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Dar de Alta Nuevo Comercio</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards de Métricas SaaS */}
@@ -1024,6 +1087,87 @@ export default function SuperAdminPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Modal Configuración 2FA */}
+      {is2FAModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 select-none">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-6 h-6 text-amber-400" />
+                <h3 className="font-bold text-xl text-white">Autenticación de 2 Factores (2FA)</h3>
+              </div>
+              <button
+                onClick={() => setIs2FAModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {setupMessage && (
+              <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold text-center">
+                {setupMessage}
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs text-slate-300">
+              <p className="font-bold text-white text-sm">📲 Paso 1: Vincula tu aplicación de seguridad</p>
+              <p className="text-slate-400">
+                Abre <b>Google Authenticator</b> o <b>Authy</b> en tu celular y escanea este código QR:
+              </p>
+
+              {qrCodeUrl ? (
+                <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-slate-700 my-2">
+                  <img src={qrCodeUrl} alt="2FA QR Code" className="w-44 h-44" />
+                  <p className="text-[10px] text-slate-600 font-mono mt-2 font-bold select-all">
+                    Clave manual: {secretKey}
+                  </p>
+                </div>
+              ) : (
+                <div className="p-8 text-center text-slate-500 font-bold">Cargando código QR...</div>
+              )}
+
+              <p className="font-bold text-white text-sm pt-2">🔑 Paso 2: Confirma el código de 6 dígitos</p>
+              <p className="text-slate-400">
+                Escribe el código temporal de 6 dígitos que se genera en tu celular para activar la protección:
+              </p>
+
+              <div className="flex gap-2 pt-1">
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={testCode}
+                  onChange={(e) => setTestCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-slate-800 border border-amber-500/40 text-white font-mono text-center font-extrabold text-lg tracking-[0.2em] focus:outline-none focus:border-amber-400"
+                />
+                <button
+                  onClick={handleActivate2FA}
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-amber-950/40"
+                >
+                  {is2FAEnabled ? "Re-Verificar" : "Activar 2FA"}
+                </button>
+              </div>
+
+              {is2FAEnabled && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold text-center mt-3">
+                  ✓ 2FA se encuentra actualmente ACTIVO en tu cuenta de SuperAdmin.
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-800">
+              <button
+                onClick={() => setIs2FAModalOpen(false)}
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
