@@ -291,6 +291,35 @@ export default function ProductsPage() {
     reader.readAsText(file, "UTF-8");
   };
 
+  function cleanMojibake(str: string): string {
+    if (!str) return str;
+    let s = str.trim();
+    return s
+      .replace(/AlmacÃ©n|AlmacÃ£\u00a9n|AlmacÃ\u00a9n/gi, "Almacén")
+      .replace(/FiambrerÃa|FiambrerÃ\u00ada/gi, "Fiambrería")
+      .replace(/LÃ¡cteos|LÃ\u00a1cteos/gi, "Lácteos")
+      .replace(/PanaderÃa|PanaderÃ\u00ada/gi, "Panadería")
+      .replace(/CLÃ¡sica|CLÃ\u00a1sica/gi, "Clásica")
+      .replace(/LimÃ³n|LimÃ\u00b3n/gi, "Limón")
+      .replace(/JabÃ³n|JabÃ\u00b3n/gi, "Jabón")
+      .replace(/AcciÃ³n|AcciÃ\u00b3n/gi, "Acción")
+      .replace(/TallarÃn|TallarÃ\u00adn/gi, "Tallarín")
+      .replace(/SerenÃsima|SerenÃ\u00adsima/gi, "Serenísima")
+      .replace(/CaÃ±uelense|CaÃ\u00b1uelense/gi, "Cañuelense")
+      .replace(/Ã©/g, "é")
+      .replace(/Ã¡/g, "á")
+      .replace(/Ã­/g, "í")
+      .replace(/Ã³/g, "ó")
+      .replace(/Ãº/g, "ú")
+      .replace(/Ã±/g, "ñ")
+      .replace(/Ã‰/g, "É")
+      .replace(/Ã/g, "Á")
+      .replace(/Ã/g, "Í")
+      .replace(/Ã/g, "Ó")
+      .replace(/ÃÚ/g, "Ú")
+      .replace(/Ã'/g, "Ñ");
+  }
+
   // Exportar catálogo completo a Excel/CSV con sep=; para celdas independientes (Columna A, B, C, D...)
   const handleExportCSV = () => {
     if (products.length === 0) return alert("No hay productos para exportar");
@@ -298,8 +327,8 @@ export default function ProductsPage() {
     const headers = ["codigo", "nombre", "categoria", "tipoVenta", "precioCosto", "precioVenta", "stockActual", "stockMinimo"];
     const rows = products.map((p) => [
       p.code || "",
-      `"${p.name.replace(/"/g, '""')}"`,
-      `"${(p.category?.name || "General").replace(/"/g, '""')}"`,
+      `"${cleanMojibake(p.name).replace(/"/g, '""')}"`,
+      `"${cleanMojibake(p.category?.name || "General").replace(/"/g, '""')}"`,
       p.unitType,
       p.costPrice,
       p.salePrice,
@@ -307,9 +336,10 @@ export default function ProductsPage() {
       p.minStock,
     ]);
 
+    // \uFEFF fuerza codificación UTF-8 pura en Excel para acentos (é, á, í, ó, ú, ñ)
     // sep=;\n le indica a Excel que separe cada dato en su propia celda/columna (A, B, C, D, E, F, G, H)
-    const csvData = "sep=;\n" + [headers.join(";"), ...rows.map((e) => e.join(";"))].join("\n");
-    const blob = new Blob(["\uFEFF" + csvData], { type: "text/csv;charset=utf-8;" });
+    const csvData = "\uFEFFsep=;\n" + [headers.join(";"), ...rows.map((e) => e.join(";"))].join("\n");
+    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
