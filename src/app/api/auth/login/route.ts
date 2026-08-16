@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { setSessionCookie } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -86,15 +87,19 @@ export async function POST(request: Request) {
               }).catch(() => {});
             }
 
+            const sessionUser = {
+              id: dbUser.id,
+              name: dbUser.name,
+              username: dbUser.username,
+              role: dbUser.role,
+              tenantId: dbUser.tenantId || null,
+            };
+
+            await setSessionCookie(sessionUser);
+
             return NextResponse.json({
               success: true,
-              user: {
-                id: dbUser.id,
-                name: dbUser.name,
-                username: dbUser.username,
-                role: dbUser.role,
-                tenantId: dbUser.tenantId || null,
-              },
+              user: sessionUser,
             });
           }
         }
@@ -103,14 +108,19 @@ export async function POST(request: Request) {
       }
 
       // Si la base de datos no tiene la clave actualizada aún, permitir login de emergencia
+      const fallbackUser = {
+        id: defaultAcc.id,
+        name: defaultAcc.name,
+        username: defaultAcc.username,
+        role: defaultAcc.role,
+        tenantId: null,
+      };
+
+      await setSessionCookie(fallbackUser);
+
       return NextResponse.json({
         success: true,
-        user: {
-          id: defaultAcc.id,
-          name: defaultAcc.name,
-          username: defaultAcc.username,
-          role: defaultAcc.role,
-        },
+        user: fallbackUser,
       });
     }
 
@@ -163,15 +173,20 @@ export async function POST(request: Request) {
       })
       .catch(() => {});
 
+    const sessionUser = {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      role: user.role,
+      tenantId: user.tenantId || null,
+    };
+
+    // Crear Cookie de Sesión HTTP-Only firmada con JWT (Inaccesible desde JS del cliente)
+    await setSessionCookie(sessionUser);
+
     return NextResponse.json({
       success: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        username: user.username,
-        role: user.role,
-        tenantId: user.tenantId || null,
-      },
+      user: sessionUser,
     });
   } catch (error: any) {
     console.error("Error en login API:", error);
